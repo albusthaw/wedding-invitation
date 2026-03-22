@@ -1,0 +1,100 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          String           @id @default(cuid())
+  email       String           @unique
+  password    String
+  name        String
+  role        Role             @default(CLIENT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  invitations UserInvitation[]
+  messages    Message[]
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+model InvitationLetter {
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  title          String
+  groomName      String
+  brideName      String
+  weddingDate    DateTime
+  weddingVenue   String
+  weddingAddress String           @db.Text
+  groomPhoto     String?
+  bridePhoto     String?
+  couplePhoto    String?
+  galleryPhotos  Json?            @default("[]")
+  musicFile      String?
+  designConfig   Json?            @default("{}")
+  customCss      String?          @db.LongText
+  customHtml     String?          @db.LongText
+  published      Boolean          @default(false)
+  needsRepublish Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  users          UserInvitation[]
+  invitees       Invitee[]
+  messages       Message[]
+}
+
+model UserInvitation {
+  id           String           @id @default(cuid())
+  userId       String
+  invitationId String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitation   InvitationLetter @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+
+  @@unique([userId, invitationId])
+}
+
+model Invitee {
+  id             String           @id @default(cuid())
+  name           String
+  specialCode    String           @unique
+  invitationId   String
+  addedByUserId  String
+  rsvpStatus     RsvpStatus       @default(PENDING)
+  rsvpMessage    String?          @db.Text
+  numberOfGuests Int              @default(1)
+  invitation     InvitationLetter @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+enum RsvpStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model Message {
+  id           String           @id @default(cuid())
+  content      String           @db.Text
+  senderName   String
+  userId       String?
+  invitationId String
+  user         User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  invitation   InvitationLetter @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
