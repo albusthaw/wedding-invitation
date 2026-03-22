@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+/* Google Fonts are loaded via <link> tags in layout.tsx for reliability */
+
+/* Wedding Theme CSS Variables */
+:root {
+  --primary-rose: #ed5566;
+  --dark-bg: #1a1a2e;
+  --gold-accent: #c9a96e;
+  --cream: #fef5e7;
+
+  --font-script: "Great Vibes", cursive;
+  --font-serif: "Playfair Display", serif;
+  --font-body: "Poppins", sans-serif;
+}
+
+/* Base styles */
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Wedding Theme Utility Classes */
+.font-script {
+  font-family: var(--font-script);
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.text-rose {
+  color: var(--primary-rose);
+}
+
+.bg-rose {
+  background-color: var(--primary-rose);
+}
+
+.text-gold {
+  color: var(--gold-accent);
+}
+
+.bg-gold {
+  background-color: var(--gold-accent);
+}
+
+.text-cream {
+  color: var(--cream);
+}
+
+.bg-cream {
+  background-color: var(--cream);
+}
+
+.bg-dark {
+  background-color: var(--dark-bg);
+}
+
+.text-dark {
+  color: var(--dark-bg);
+}
+
+.border-rose {
+  border-color: var(--primary-rose);
+}
+
+.border-gold {
+  border-color: var(--gold-accent);
+}
+
+/* Gradient utilities */
+.gradient-rose-gold {
+  background: linear-gradient(135deg, var(--primary-rose), var(--gold-accent));
+}
+
+.gradient-dark {
+  background: linear-gradient(135deg, var(--dark-bg), #16213e);
+}
+
+/* Decorative elements */
+.wedding-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.wedding-divider::before,
+.wedding-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--gold-accent),
+    transparent
+  );
+}
+
+/* Scroll animation base */
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Gold text shimmer */
+.text-shimmer {
+  background: linear-gradient(
+    120deg,
+    var(--gold-accent) 0%,
+    #e8d5a3 50%,
+    var(--gold-accent) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
