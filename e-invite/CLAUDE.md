@@ -84,7 +84,8 @@ e-invite/
 │   └── middleware.ts          # Route protection middleware
 ├── .env                       # Environment variables
 ├── .env.example               # Environment template
-├── install.sh                 # VPS installation script
+├── install.sh                 # VPS installation script (fresh server)
+├── reinstall.sh               # VPS reinstallation script (existing server)
 ├── package.sh                 # ZIP packaging script
 ├── next.config.ts             # Next.js configuration
 ├── package.json               # Dependencies
@@ -193,6 +194,7 @@ cd ..
 - Config files (`package.json`, `tsconfig.json`, `next.config.ts`, etc.)
 - `.env.example` (template, NOT the actual `.env`)
 - `install.sh` (executable, handles full VPS setup)
+- `reinstall.sh` (executable, handles conflict-free reinstall)
 - `package.sh` (convenience script for timestamped archives)
 - `CLAUDE.md`, `README.md`, `.gitignore`
 - Upload directory placeholders (`.gitkeep`)
