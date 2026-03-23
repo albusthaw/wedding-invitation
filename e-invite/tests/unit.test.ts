@@ -311,11 +311,11 @@ describe("Install Script", () => {
     );
   });
 
-  it("should set NEXTAUTH_URL to https://invite.minthantthaw.me", () => {
+  it("should set NEXTAUTH_URL to http (not https) before SSL setup", () => {
     const script = readFileSync(join(PROJECT_ROOT, "install.sh"), "utf8");
     assert.ok(
-      script.includes('NEXTAUTH_URL="https://invite.minthantthaw.me"'),
-      "NEXTAUTH_URL should be set correctly"
+      script.includes('NEXTAUTH_URL="http://invite.minthantthaw.me"'),
+      "NEXTAUTH_URL should use HTTP initially (HTTPS requires SSL setup first)"
     );
   });
 

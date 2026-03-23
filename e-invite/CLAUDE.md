@@ -271,11 +271,17 @@ Known bugs found and fixed — watch for regressions:
 **Root cause:** Prisma's `@prisma/config` depends on `effect` which had an AsyncLocalStorage context leak.
 **Rule:** The `overrides` field in `package.json` pins `effect` to `^3.21.0`. Do not remove this override until Prisma ships a fix natively.
 
-### 6. Next.js 16 Middleware Deprecation + Login Failure (Fixed)
-**Symptom:** `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.` warning on startup. Login fails with "Invalid email or password" even with correct credentials.
-**Root cause:** Next.js 16 renamed `middleware.ts` to `proxy.ts`. The old `auth()` wrapper from NextAuth v5 wraps `NextResponse.next()` in `new Response()` inside its `handleAuth()` function, which can interfere with Next.js 16's proxy request forwarding — the auth callback response gets swallowed instead of reaching the route handler.
-**Fix:** Renamed `src/middleware.ts` → `src/proxy.ts`. Replaced the `auth()` wrapper with a standalone proxy function that uses `getToken()` from `next-auth/jwt` to check authentication status directly, avoiding the wrapper's response transformation issue.
+### 6. Next.js 16 Middleware Deprecation (Fixed)
+**Symptom:** `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.` warning on startup.
+**Root cause:** Next.js 16 renamed `middleware.ts` to `proxy.ts`.
+**Fix:** Renamed `src/middleware.ts` → `src/proxy.ts`. Replaced the `auth()` wrapper with a standalone proxy function that uses `getToken()` from `next-auth/jwt` to check authentication status directly.
 **Rule:** Never use `export default auth(...)` in `src/proxy.ts`. Use `getToken()` from `next-auth/jwt` for session checks in the proxy. The file must be named `proxy.ts`, not `middleware.ts`.
+
+### 8. HTTPS NEXTAUTH_URL Before SSL Setup Breaks Login (Fixed)
+**Symptom:** Login always fails with "Invalid email or password" even with correct credentials. Server returns `error=MissingCSRF` or `error=CredentialsSignin`.
+**Root cause:** `install.sh` set `NEXTAUTH_URL="https://..."` but SSL (certbot) is NOT configured by the script — it's a manual post-install step. When `NEXTAUTH_URL` is HTTPS, NextAuth uses `__Secure-`/`__Host-` prefixed cookies with the `Secure` flag. Browsers **refuse to store `Secure` cookies received over plain HTTP**. So the CSRF cookie is never saved, and every login POST fails CSRF validation.
+**Fix:** Changed `install.sh` and `reinstall.sh` to set `NEXTAUTH_URL="http://..."` initially. After the user sets up SSL with certbot, they update `.env` to HTTPS and restart PM2. Also made the seed command show errors instead of suppressing stderr.
+**Rule:** `NEXTAUTH_URL` must match the actual protocol the user accesses the site with. Never set it to HTTPS until SSL is actually configured. The install summary must include the step to update `.env` after certbot.
 
 ### 7. Deprecated Type Stub Packages (Fixed)
 **Symptom:** `npm warn deprecated @types/bcryptjs` and `npm warn deprecated @types/uuid` during installation.

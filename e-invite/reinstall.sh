@@ -238,7 +238,7 @@ DATABASE_URL="mysql://einvite:${DB_PASSWORD}@localhost:3306/einvite"
 
 # NextAuth
 NEXTAUTH_SECRET="${NEXTAUTH_SECRET}"
-NEXTAUTH_URL="https://invite.minthantthaw.me"
+NEXTAUTH_URL="http://invite.minthantthaw.me"
 
 # Gemini AI (configure via Settings page)
 GEMINI_API_KEY=""
@@ -266,7 +266,11 @@ EOF
 
     # Seed database
     print_step "Seeding database..."
-    npx tsx prisma/seed.ts 2>/dev/null || print_warn "Seed may have already been applied"
+    if npx tsx prisma/seed.ts 2>&1; then
+        print_success "Database seeded (admin@einvite.com / admin123)"
+    else
+        print_error "Seed failed! Run manually: cd $APP_DIR && npx tsx prisma/seed.ts"
+    fi
 
     # Build application
     print_step "Building Next.js application..."
@@ -389,7 +393,7 @@ print_summary() {
     echo "╠══════════════════════════════════════════════════════════╣"
     echo "║                                                          ║"
     echo "║  Domain:      invite.minthantthaw.me                     ║"
-    echo "║  App URL:     https://invite.minthantthaw.me             ║"
+    echo "║  App URL:     http://invite.minthantthaw.me              ║"
     echo "║  Admin Login: admin@einvite.com / admin123               ║"
     echo "║                                                          ║"
     echo "║  App Dir:     /opt/einvite                               ║"
@@ -399,6 +403,10 @@ print_summary() {
     echo "║                                                          ║"
     echo "║  NOTE: Previous uploads were preserved if they existed.  ║"
     echo "║  Database was recreated fresh (admin password: admin123) ║"
+    echo "║                                                          ║"
+    echo "║  For HTTPS: set up SSL then update .env:                 ║"
+    echo "║  NEXTAUTH_URL=\"https://invite.minthantthaw.me\"           ║"
+    echo "║  pm2 restart einvite                                     ║"
     echo "║                                                          ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
