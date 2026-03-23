@@ -266,7 +266,11 @@ EOF
 
     # Seed database
     print_step "Seeding database..."
-    npx tsx prisma/seed.ts 2>/dev/null || print_warn "Seed may have already been applied"
+    if npx tsx prisma/seed.ts 2>&1; then
+        print_success "Database seeded (admin@einvite.com / admin123)"
+    else
+        print_error "Seed failed! Run manually: cd $APP_DIR && npx tsx prisma/seed.ts"
+    fi
 
     # Build application
     print_step "Building Next.js application..."
@@ -296,6 +300,12 @@ server {
 
     client_max_body_size 50M;
 
+    # Use upstream proxy proto (Cloudflare) if present, otherwise use $scheme (certbot)
+    set $forwarded_proto $scheme;
+    if ($http_x_forwarded_proto) {
+        set $forwarded_proto $http_x_forwarded_proto;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -304,7 +314,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_cache_bypass $http_upgrade;
     }
 

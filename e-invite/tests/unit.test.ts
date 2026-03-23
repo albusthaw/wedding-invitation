@@ -315,7 +315,7 @@ describe("Install Script", () => {
     const script = readFileSync(join(PROJECT_ROOT, "install.sh"), "utf8");
     assert.ok(
       script.includes('NEXTAUTH_URL="https://invite.minthantthaw.me"'),
-      "NEXTAUTH_URL should be set correctly"
+      "NEXTAUTH_URL should be set to HTTPS"
     );
   });
 
@@ -331,6 +331,14 @@ describe("Install Script", () => {
     const script = readFileSync(join(PROJECT_ROOT, "install.sh"), "utf8");
     assert.ok(script.includes("prisma db push"), "Should push Prisma schema");
     assert.ok(script.includes("seed.ts"), "Should run database seed");
+  });
+
+  it("should forward upstream X-Forwarded-Proto in Nginx config (Cloudflare support)", () => {
+    const script = readFileSync(join(PROJECT_ROOT, "install.sh"), "utf8");
+    assert.ok(
+      script.includes("$http_x_forwarded_proto"),
+      "Nginx should respect upstream proxy X-Forwarded-Proto (e.g. Cloudflare)"
+    );
   });
 });
 
