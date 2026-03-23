@@ -161,15 +161,15 @@ npx prisma studio    # Open Prisma Studio GUI
 - The MediaUploader component displays this AI feedback to guide the user
 - Users can use the AI Designer chat to request further image adjustments
 
-## ZIP Packaging (e-invite.zip)
+## ZIP Packaging (einvite.zip)
 
-### How e-invite.zip is repacked
+### How einvite.zip is repacked
 The zip is always repacked from **fresh source code** — no build artifacts, no dependencies, no user data. On a fresh VPS, unzip then run `install.sh` and it handles everything.
 
 **Repack command** (run from the project root `/home/user/wedding-invitation`):
 ```bash
-rm -f e-invite.zip
-cd e-invite && zip -r ../e-invite.zip . \
+rm -f einvite.zip
+cd e-invite && zip -r ../einvite.zip . \
   -x "./node_modules/*" \
   -x "./.next/*" \
   -x "./.env" \
@@ -182,7 +182,7 @@ cd e-invite && zip -r ../e-invite.zip . \
   -x "*.DS_Store" \
   -x "./package-lock.json"
 # Re-add directory placeholder files
-zip ../e-invite.zip \
+zip ../einvite.zip \
   public/uploads/photos/.gitkeep \
   public/uploads/music/.gitkeep
 cd ..
@@ -209,7 +209,7 @@ cd ..
 
 **Deployment flow after unzip:**
 ```bash
-unzip e-invite.zip -d e-invite
+unzip einvite.zip -d e-invite
 cd e-invite
 chmod +x install.sh
 sudo ./install.sh
@@ -227,7 +227,7 @@ sudo ./install.sh
 9. Start app via PM2 with auto-restart
 10. Configure UFW firewall
 
-**Alternative: `./package.sh`** creates a timestamped archive (`e-invite-v1.0.0-20260323_120000.zip`) using the same exclusions.
+**Alternative: `./package.sh`** creates a timestamped archive (`einvite-v1.0.0-20260323_120000.zip`) using the same exclusions.
 
 ## Hold / Continue Protocol
 When the user says "Hold", the protocol is:
@@ -236,6 +236,62 @@ When the user says "Hold", the protocol is:
 3. Stop work
 
 When the user says "Restart", pick up from `tocontinue.md` and continue.
+
+## Bug Patterns
+
+Known bugs found and fixed — watch for regressions:
+
+### 1. Prisma Default Import (Fixed)
+**Symptom:** Inconsistent database behavior, potential multiple PrismaClient instances.
+**Root cause:** Some files used `import prisma from "@/lib/prisma"` (default) while others used `import { prisma } from "@/lib/prisma"` (named). The default export was removed.
+**Rule:** Always use `import { prisma } from "@/lib/prisma"`. Never add `export default` back to `prisma.ts`.
+**Files affected:** All server actions in `src/app/actions/`.
+
+### 2. NextAuth `authorized` Callback in Wrong Location (Fixed)
+**Symptom:** Server error on login, unexpected middleware conflicts.
+**Root cause:** The `authorized` callback was placed inside the `callbacks` object in the NextAuth config. In NextAuth v5, `authorized` is a middleware-only callback — it belongs in the middleware wrapper (`auth()`), not in the config `callbacks`.
+**Rule:** Never add `authorized` to the callbacks object in `src/lib/auth.ts`. Route protection logic belongs in `src/middleware.ts`.
+
+### 3. Missing `trustHost` for Reverse Proxy (Fixed)
+**Symptom:** Login fails with CSRF/callback URL errors when running behind Nginx.
+**Root cause:** NextAuth v5 requires `trustHost: true` when the app is behind a reverse proxy that sets X-Forwarded headers.
+**Rule:** Keep `trustHost: true` in the NextAuth config. Do not remove it.
+
+### 4. Unhandled Error in `authorize()` (Fixed)
+**Symptom:** Server 500 error on login if database is unreachable or query fails.
+**Root cause:** No try-catch around the database lookup and bcrypt comparison in the credentials provider's `authorize` function.
+**Rule:** The `authorize` function must have try-catch wrapping all async operations. On error, log and return `null` (not throw).
+
+### 5. NPM Vulnerability in `effect` (Prisma Transitive Dependency) (Fixed)
+**Symptom:** `npm audit` reports high severity vulnerability in `effect` < 3.20.0.
+**Root cause:** Prisma's `@prisma/config` depends on `effect` which had an AsyncLocalStorage context leak.
+**Rule:** The `overrides` field in `package.json` pins `effect` to `^3.21.0`. Do not remove this override until Prisma ships a fix natively.
+
+## Testing
+
+### Unit Tests (no server/database required)
+```bash
+npm run test:unit    # 62 tests: encryption, imports, config, security, structure
+```
+
+### E2E Tests (requires running server + MySQL)
+```bash
+npm run build
+npm run db:push && npm run db:seed
+npm run test:e2e     # Auth flow, API endpoints, route protection, security
+```
+
+### What Tests Cover
+- **Encryption**: round-trip, URL-safety, unicode, random IV uniqueness
+- **Import consistency**: no default prisma imports, "use server"/"use client" directives
+- **File structure**: all required files exist, install.sh executable
+- **Configuration**: package.json scripts, dependencies, env vars, auth config
+- **Install script**: domain config, Nginx, NEXTAUTH_URL, required packages
+- **Prisma schema**: all models, required fields, cascade deletes
+- **Security**: no hardcoded secrets, bcrypt usage, try-catch in auth, middleware protection
+- **E2E auth**: CSRF tokens, providers, login/logout, session data
+- **E2E API**: invitations, users, messages, RSVP, settings, upload (auth + validation)
+- **E2E route protection**: dashboard redirect, API auth checks
 
 ## Notes for AI Assistants
 - This uses Next.js App Router (not Pages Router)
