@@ -192,7 +192,7 @@ DATABASE_URL="mysql://einvite:${DB_PASSWORD}@localhost:3306/einvite"
 
 # NextAuth
 NEXTAUTH_SECRET="${NEXTAUTH_SECRET}"
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="https://invite.minthantthaw.me"
 
 # Gemini AI (configure via Settings page)
 GEMINI_API_KEY=""
@@ -238,7 +238,7 @@ configure_nginx() {
     cat > /etc/nginx/sites-available/einvite << 'NGINX'
 server {
     listen 80;
-    server_name _;
+    server_name invite.minthantthaw.me;
 
     client_max_body_size 50M;
 
@@ -330,25 +330,28 @@ create_directories() {
 print_summary() {
     echo ""
     echo -e "${GREEN}"
-    echo "╔══════════════════════════════════════════════════════╗"
-    echo "║         E-Invite Installation Complete!              ║"
-    echo "╠══════════════════════════════════════════════════════╣"
-    echo "║                                                      ║"
-    echo "║  App URL:     http://YOUR_SERVER_IP                  ║"
-    echo "║  Admin Login: admin@einvite.com / admin123           ║"
-    echo "║                                                      ║"
-    echo "║  App Dir:     /opt/einvite                           ║"
-    echo "║  PM2 Status:  pm2 status                             ║"
-    echo "║  PM2 Logs:    pm2 logs einvite                       ║"
-    echo "║  Restart:     pm2 restart einvite                    ║"
-    echo "║                                                      ║"
-    echo "║  IMPORTANT: Change admin password after first login! ║"
-    echo "║                                                      ║"
-    echo "║  For SSL, install certbot:                           ║"
-    echo "║  apt install certbot python3-certbot-nginx           ║"
-    echo "║  certbot --nginx -d yourdomain.com                   ║"
-    echo "║                                                      ║"
-    echo "╚══════════════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║           E-Invite Installation Complete!               ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║                                                          ║"
+    echo "║  Domain:      invite.minthantthaw.me                     ║"
+    echo "║  App URL:     https://invite.minthantthaw.me             ║"
+    echo "║  Admin Login: admin@einvite.com / admin123               ║"
+    echo "║                                                          ║"
+    echo "║  App Dir:     /opt/einvite                               ║"
+    echo "║  PM2 Status:  pm2 status                                 ║"
+    echo "║  PM2 Logs:    pm2 logs einvite                           ║"
+    echo "║  Restart:     pm2 restart einvite                        ║"
+    echo "║                                                          ║"
+    echo "║  IMPORTANT: Change admin password after first login!     ║"
+    echo "║                                                          ║"
+    echo "║  For SSL, install certbot:                               ║"
+    echo "║  apt install certbot python3-certbot-nginx               ║"
+    echo "║  certbot --nginx -d invite.minthantthaw.me               ║"
+    echo "║                                                          ║"
+    echo "║  DNS: Point invite.minthantthaw.me A record to this IP   ║"
+    echo "║                                                          ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
