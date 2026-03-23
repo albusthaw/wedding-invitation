@@ -99,6 +99,7 @@ describe("File Structure", () => {
     "next.config.ts",
     "postcss.config.mjs",
     "install.sh",
+    "reinstall.sh",
     "package.sh",
     ".env.example",
     "CLAUDE.md",
