@@ -153,23 +153,31 @@ setup_application() {
     print_step "Setting up E-Invite application..."
 
     APP_DIR="/opt/einvite"
-
-    # Create app directory
-    mkdir -p $APP_DIR
-
-    # Copy application files (assuming script is run from the e-invite directory)
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    if [ -f "$SCRIPT_DIR/package.json" ]; then
-        cp -r "$SCRIPT_DIR"/* "$APP_DIR/"
-        cp -r "$SCRIPT_DIR"/.env* "$APP_DIR/" 2>/dev/null || true
-        cp -r "$SCRIPT_DIR"/.next* "$APP_DIR/" 2>/dev/null || true
-    else
+    if [ ! -f "$SCRIPT_DIR/package.json" ]; then
         print_error "package.json not found. Run this script from the e-invite directory."
         exit 1
     fi
 
-    cd $APP_DIR
+    # Resolve both paths to handle symlinks and trailing slashes
+    REAL_SCRIPT_DIR="$(readlink -f "$SCRIPT_DIR")"
+    REAL_APP_DIR="$(readlink -f "$APP_DIR" 2>/dev/null || echo "$APP_DIR")"
+
+    if [ "$REAL_SCRIPT_DIR" = "$REAL_APP_DIR" ]; then
+        print_success "Already running from $APP_DIR, skipping copy"
+    else
+        mkdir -p "$APP_DIR"
+        # Use rsync if available for cleaner copy, fallback to cp
+        if command -v rsync &> /dev/null; then
+            rsync -a --exclude='node_modules' --exclude='.next' --exclude='.git' "$SCRIPT_DIR/" "$APP_DIR/"
+        else
+            cp -a "$SCRIPT_DIR"/. "$APP_DIR/"
+        fi
+        print_success "Application copied to $APP_DIR"
+    fi
+
+    cd "$APP_DIR"
 
     # Read DB password
     DB_PASSWORD=$(cat /tmp/.einvite_db_password 2>/dev/null || echo "password")
@@ -184,7 +192,7 @@ DATABASE_URL="mysql://einvite:${DB_PASSWORD}@localhost:3306/einvite"
 
 # NextAuth
 NEXTAUTH_SECRET="${NEXTAUTH_SECRET}"
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="https://invite.minthantthaw.me"
 
 # Gemini AI (configure via Settings page)
 GEMINI_API_KEY=""
@@ -230,7 +238,7 @@ configure_nginx() {
     cat > /etc/nginx/sites-available/einvite << 'NGINX'
 server {
     listen 80;
-    server_name _;
+    server_name invite.minthantthaw.me;
 
     client_max_body_size 50M;
 
@@ -322,25 +330,28 @@ create_directories() {
 print_summary() {
     echo ""
     echo -e "${GREEN}"
-    echo "╔══════════════════════════════════════════════════════╗"
-    echo "║         E-Invite Installation Complete!              ║"
-    echo "╠══════════════════════════════════════════════════════╣"
-    echo "║                                                      ║"
-    echo "║  App URL:     http://YOUR_SERVER_IP                  ║"
-    echo "║  Admin Login: admin@einvite.com / admin123           ║"
-    echo "║                                                      ║"
-    echo "║  App Dir:     /opt/einvite                           ║"
-    echo "║  PM2 Status:  pm2 status                             ║"
-    echo "║  PM2 Logs:    pm2 logs einvite                       ║"
-    echo "║  Restart:     pm2 restart einvite                    ║"
-    echo "║                                                      ║"
-    echo "║  IMPORTANT: Change admin password after first login! ║"
-    echo "║                                                      ║"
-    echo "║  For SSL, install certbot:                           ║"
-    echo "║  apt install certbot python3-certbot-nginx           ║"
-    echo "║  certbot --nginx -d yourdomain.com                   ║"
-    echo "║                                                      ║"
-    echo "╚══════════════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║           E-Invite Installation Complete!               ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║                                                          ║"
+    echo "║  Domain:      invite.minthantthaw.me                     ║"
+    echo "║  App URL:     https://invite.minthantthaw.me             ║"
+    echo "║  Admin Login: admin@einvite.com / admin123               ║"
+    echo "║                                                          ║"
+    echo "║  App Dir:     /opt/einvite                               ║"
+    echo "║  PM2 Status:  pm2 status                                 ║"
+    echo "║  PM2 Logs:    pm2 logs einvite                           ║"
+    echo "║  Restart:     pm2 restart einvite                        ║"
+    echo "║                                                          ║"
+    echo "║  IMPORTANT: Change admin password after first login!     ║"
+    echo "║                                                          ║"
+    echo "║  For SSL, install certbot:                               ║"
+    echo "║  apt install certbot python3-certbot-nginx               ║"
+    echo "║  certbot --nginx -d invite.minthantthaw.me               ║"
+    echo "║                                                          ║"
+    echo "║  DNS: Point invite.minthantthaw.me A record to this IP   ║"
+    echo "║                                                          ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
