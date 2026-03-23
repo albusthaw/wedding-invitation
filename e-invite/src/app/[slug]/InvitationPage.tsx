@@ -26,6 +26,7 @@ interface SerializedInvitation {
   weddingDate: string;
   weddingVenue: string;
   weddingAddress: string;
+  mapPlusCode: string | null;
   groomPhoto: string | null;
   bridePhoto: string | null;
   couplePhoto: string | null;
@@ -196,6 +197,7 @@ export default function InvitationPage({
               weddingDate={invitation.weddingDate}
               weddingVenue={invitation.weddingVenue}
               weddingAddress={invitation.weddingAddress}
+              mapPlusCode={invitation.mapPlusCode || undefined}
               couplePhoto={invitation.couplePhoto || undefined}
               groomPhoto={invitation.groomPhoto || undefined}
               bridePhoto={invitation.bridePhoto || undefined}

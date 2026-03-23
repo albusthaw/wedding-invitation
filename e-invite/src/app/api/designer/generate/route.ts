@@ -32,26 +32,32 @@ export async function POST(request: NextRequest) {
     const { GoogleGenAI } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey });
 
-    const systemPrompt = `You are a wedding invitation page designer AI. You help customize wedding invitation websites.
+    const systemPrompt = `You are a wedding invitation page designer AI. You customize wedding invitation websites by modifying design configuration.
 
-The current design configuration is:
+Current design configuration:
 ${JSON.stringify(currentConfig, null, 2)}
 
-The user wants to make changes. Based on their request, return ONLY a valid JSON object with the updated design configuration. The JSON must have these fields:
-- primaryFont: string (Google Font name, e.g., "Great Vibes", "Playfair Display", "Dancing Script", "Sacramento")
-- backgroundColor: string (hex color)
-- primaryColor: string (hex color for buttons/accents)
-- accentColor: string (hex color for gold/decorative elements)
-- textColor: string (hex color)
-- backgroundImage: string (URL or empty string)
-- enableGallery: boolean
-- enableRsvp: boolean
-- enableCountdown: boolean
-- enableMessages: boolean
-- customCss: string (additional CSS)
+Based on the user's request, return ONLY a valid JSON object with ALL these fields (keep unchanged values the same):
+{
+  "primaryFont": "Google Font name (Great Vibes, Playfair Display, Dancing Script, Sacramento, Cormorant Garamond, Lora, Cinzel, Tangerine, Alex Brush, Satisfy)",
+  "backgroundColor": "#hex background color",
+  "primaryColor": "#hex color for buttons and key accents",
+  "accentColor": "#hex color for gold/decorative elements",
+  "textColor": "#hex text color",
+  "backgroundImage": "URL or empty string",
+  "enableGallery": true,
+  "enableRsvp": true,
+  "enableCountdown": true,
+  "enableMessages": true,
+  "customCss": "additional CSS rules or empty string"
+}
 
-Only change values that are relevant to the user's request. Keep everything else the same.
-Return ONLY the JSON object, no markdown, no explanation.`;
+Important rules:
+- Return ONLY the JSON object, no markdown, no backticks, no explanation
+- All color values must be valid hex codes (e.g. #ff0000)
+- Ensure good contrast between textColor and backgroundColor
+- Only change values relevant to the user's request
+- For theme requests, update colors, font, and optionally customCss together for a cohesive look`;
 
     const response = await ai.models.generateContent({
       model,
@@ -72,6 +78,29 @@ Return ONLY the JSON object, no markdown, no explanation.`;
       } else {
         throw new Error("No JSON found in response");
       }
+
+      // Validate required fields exist and have correct types
+      const requiredStringFields = ["primaryFont", "backgroundColor", "primaryColor", "accentColor", "textColor"];
+      for (const field of requiredStringFields) {
+        if (typeof config[field] !== "string" || !config[field]) {
+          config[field] = (currentConfig as Record<string, unknown>)[field];
+        }
+      }
+      // Ensure hex colors are valid
+      for (const field of ["backgroundColor", "primaryColor", "accentColor", "textColor"]) {
+        if (config[field] && !/^#[0-9a-fA-F]{3,8}$/.test(config[field])) {
+          config[field] = (currentConfig as Record<string, unknown>)[field];
+        }
+      }
+      // Ensure booleans
+      for (const field of ["enableGallery", "enableRsvp", "enableCountdown", "enableMessages"]) {
+        if (typeof config[field] !== "boolean") {
+          config[field] = (currentConfig as Record<string, unknown>)[field] ?? true;
+        }
+      }
+      // Ensure strings
+      if (typeof config.backgroundImage !== "string") config.backgroundImage = "";
+      if (typeof config.customCss !== "string") config.customCss = "";
     } catch {
       return NextResponse.json(
         {

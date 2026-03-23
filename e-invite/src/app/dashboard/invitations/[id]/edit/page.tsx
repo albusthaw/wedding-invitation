@@ -13,6 +13,7 @@ interface InvitationData {
   weddingDate: string;
   weddingVenue: string;
   weddingAddress: string;
+  mapPlusCode: string | null;
   groomPhoto: string | null;
   bridePhoto: string | null;
   couplePhoto: string | null;
@@ -264,6 +265,19 @@ export default function EditInvitationPage({
                 defaultValue={invitation.weddingAddress}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-[#ed5566]/50 focus:ring-1 focus:ring-[#ed5566]/30 transition-all resize-none"
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-white/70 mb-1.5">
+                Google Maps Plus Code
+              </label>
+              <input
+                name="mapPlusCode"
+                type="text"
+                defaultValue={invitation.mapPlusCode || ""}
+                placeholder="X3XP+44 Mandalay, Myanmar (Burma)"
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-[#ed5566]/50 focus:ring-1 focus:ring-[#ed5566]/30 transition-all"
+              />
+              <p className="text-white/30 text-xs mt-1">Enter a Google Maps Plus Code to show a map button on the invitation page</p>
             </div>
           </div>
         </div>

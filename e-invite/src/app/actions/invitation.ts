@@ -57,6 +57,7 @@ export async function createInvitation(formData: FormData) {
   const weddingDate = formData.get("weddingDate") as string;
   const weddingVenue = formData.get("weddingVenue") as string;
   const weddingAddress = formData.get("weddingAddress") as string;
+  const mapPlusCode = (formData.get("mapPlusCode") as string) || null;
 
   if (!title || !groomName || !brideName || !weddingDate || !weddingVenue || !weddingAddress) {
     throw new Error("Missing required fields");
@@ -101,6 +102,7 @@ export async function createInvitation(formData: FormData) {
       weddingDate: new Date(weddingDate),
       weddingVenue,
       weddingAddress,
+      mapPlusCode,
       groomPhoto,
       bridePhoto,
       couplePhoto,
@@ -137,6 +139,9 @@ export async function updateInvitation(id: string, formData: FormData) {
   if (weddingDate) data.weddingDate = new Date(weddingDate);
   if (weddingVenue) data.weddingVenue = weddingVenue;
   if (weddingAddress) data.weddingAddress = weddingAddress;
+
+  const mapPlusCode = formData.get("mapPlusCode") as string | null;
+  if (mapPlusCode !== null) data.mapPlusCode = mapPlusCode || null;
 
   const groomPhotoFile = formData.get("groomPhoto") as File | null;
   if (groomPhotoFile && groomPhotoFile.size > 0) {

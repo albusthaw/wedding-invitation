@@ -23,7 +23,7 @@ export default function NewUserPage() {
   const [serverError, setServerError] = useState("");
 
   useEffect(() => {
-    fetch("/api/invitations")
+    fetch("/api/invitations", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {

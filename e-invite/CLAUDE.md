@@ -126,6 +126,9 @@ The `designConfig` JSON field on InvitationLetter stores:
 }
 ```
 
+### Google Maps Plus Code
+The `mapPlusCode` field on InvitationLetter stores a Google Maps Plus Code (e.g., `X3XP+44 Mandalay, Myanmar (Burma)`). When set, a map pin button appears next to the venue name on the public invitation page, linking to Google Maps search for that Plus Code.
+
 ### Publish/Unpublish
 - Invitation must be published to be publicly visible
 - Design changes after publishing set `needsRepublish = true`
@@ -300,6 +303,24 @@ Known bugs found and fixed — watch for regressions:
 **Root cause:** bcryptjs 3.x and uuid 13.x now ship their own TypeScript types. The separate `@types/*` packages are no longer needed and show deprecation warnings.
 **Fix:** Removed `@types/bcryptjs` and `@types/uuid` from dependencies.
 **Rule:** Do not re-add `@types/bcryptjs` or `@types/uuid` to `package.json`.
+
+### 11. Missing POST Handler for User Creation (Fixed)
+**Symptom:** Creating a user shows "Failed to execute 'json' on 'Response': Unexpected end of JSON input".
+**Root cause:** `/api/users/route.ts` only had a GET handler. POST returned 405 with empty body.
+**Fix:** Added POST handler with validation, duplicate check, bcrypt hashing, and invitation assignment.
+**Rule:** Every API route that a client-side form POSTs to must have a POST handler. Always return JSON from API routes, even for errors.
+
+### 12. Missing PUT Handler for Invitation Updates (Fixed)
+**Symptom:** Designer can't save designs; PUT to `/api/invitations/[id]` returns 405.
+**Root cause:** Route only had GET and DELETE — no PUT handler.
+**Fix:** Added PUT handler supporting all invitation fields.
+**Rule:** The designer page saves via `PUT /api/invitations/[id]`. This handler must exist.
+
+### 13. Client-Side Fetch Caching (Fixed)
+**Symptom:** Data appears on Dashboard (Server Component) but not on client pages that fetch from API.
+**Root cause:** Browser or Next.js may cache client-side `fetch()` responses. Client component pages fetch from API routes, while the Dashboard queries Prisma directly as a Server Component.
+**Fix:** Added `{ cache: "no-store" }` to all client-side `fetch()` calls for API data.
+**Rule:** Always use `{ cache: "no-store" }` for client-side fetches that need fresh data. Server Components query Prisma directly and don't have this issue.
 
 ## Testing
 
