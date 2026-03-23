@@ -26,7 +26,11 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password. Please try again.");
+        if (result.error === "CredentialsSignin") {
+          setError("Invalid email or password. Please try again.");
+        } else {
+          setError(`Login failed: ${result.error}. Please try again.`);
+        }
       } else {
         router.push(callbackUrl);
         router.refresh();

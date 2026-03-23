@@ -195,7 +195,7 @@ DATABASE_URL="mysql://einvite:${DB_PASSWORD}@localhost:3306/einvite"
 
 # NextAuth
 NEXTAUTH_SECRET="${NEXTAUTH_SECRET}"
-NEXTAUTH_URL="http://invite.minthantthaw.me"
+NEXTAUTH_URL="https://invite.minthantthaw.me"
 
 # Gemini AI (configure via Settings page)
 GEMINI_API_KEY=""
@@ -249,6 +249,12 @@ server {
 
     client_max_body_size 50M;
 
+    # Use upstream proxy proto (Cloudflare) if present, otherwise use $scheme (certbot)
+    set $forwarded_proto $scheme;
+    if ($http_x_forwarded_proto) {
+        set $forwarded_proto $http_x_forwarded_proto;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -257,7 +263,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_cache_bypass $http_upgrade;
     }
 
@@ -342,7 +348,7 @@ print_summary() {
     echo "╠══════════════════════════════════════════════════════════╣"
     echo "║                                                          ║"
     echo "║  Domain:      invite.minthantthaw.me                     ║"
-    echo "║  App URL:     http://invite.minthantthaw.me              ║"
+    echo "║  App URL:     https://invite.minthantthaw.me             ║"
     echo "║  Admin Login: admin@einvite.com / admin123               ║"
     echo "║                                                          ║"
     echo "║  App Dir:     /opt/einvite                               ║"
@@ -352,12 +358,9 @@ print_summary() {
     echo "║                                                          ║"
     echo "║  IMPORTANT: Change admin password after first login!     ║"
     echo "║                                                          ║"
-    echo "║  For SSL (required for HTTPS):                           ║"
-    echo "║  1. apt install certbot python3-certbot-nginx            ║"
-    echo "║  2. certbot --nginx -d invite.minthantthaw.me            ║"
-    echo "║  3. Edit /opt/einvite/.env:                              ║"
-    echo "║     NEXTAUTH_URL=\"https://invite.minthantthaw.me\"        ║"
-    echo "║  4. pm2 restart einvite                                  ║"
+    echo "║  SSL: Use Cloudflare (recommended) or certbot:           ║"
+    echo "║  apt install certbot python3-certbot-nginx               ║"
+    echo "║  certbot --nginx -d invite.minthantthaw.me               ║"
     echo "║                                                          ║"
     echo "║  DNS: Point invite.minthantthaw.me A record to this IP   ║"
     echo "║                                                          ║"

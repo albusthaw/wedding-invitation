@@ -277,11 +277,17 @@ Known bugs found and fixed — watch for regressions:
 **Fix:** Renamed `src/middleware.ts` → `src/proxy.ts`. Replaced the `auth()` wrapper with a standalone proxy function that uses `getToken()` from `next-auth/jwt` to check authentication status directly.
 **Rule:** Never use `export default auth(...)` in `src/proxy.ts`. Use `getToken()` from `next-auth/jwt` for session checks in the proxy. The file must be named `proxy.ts`, not `middleware.ts`.
 
-### 8. HTTPS NEXTAUTH_URL Before SSL Setup Breaks Login (Fixed)
-**Symptom:** Login always fails with "Invalid email or password" even with correct credentials. Server returns `error=MissingCSRF` or `error=CredentialsSignin`.
-**Root cause:** `install.sh` set `NEXTAUTH_URL="https://..."` but SSL (certbot) is NOT configured by the script — it's a manual post-install step. When `NEXTAUTH_URL` is HTTPS, NextAuth uses `__Secure-`/`__Host-` prefixed cookies with the `Secure` flag. Browsers **refuse to store `Secure` cookies received over plain HTTP**. So the CSRF cookie is never saved, and every login POST fails CSRF validation.
-**Fix:** Changed `install.sh` and `reinstall.sh` to set `NEXTAUTH_URL="http://..."` initially. After the user sets up SSL with certbot, they update `.env` to HTTPS and restart PM2. Also made the seed command show errors instead of suppressing stderr.
-**Rule:** `NEXTAUTH_URL` must match the actual protocol the user accesses the site with. Never set it to HTTPS until SSL is actually configured. The install summary must include the step to update `.env` after certbot.
+### 8. Nginx `X-Forwarded-Proto $scheme` Breaks Login Behind Cloudflare (Fixed)
+**Symptom:** Login fails with "Invalid email or password" (actually `MissingCSRF`) when site uses Cloudflare for HTTPS.
+**Root cause:** Nginx config had `proxy_set_header X-Forwarded-Proto $scheme;`. With Cloudflare, the traffic flow is Browser→HTTPS→Cloudflare→HTTP→Nginx→HTTP→Node.js. Nginx's `$scheme` is `http` (because Cloudflare→Nginx is HTTP), so it sends `X-Forwarded-Proto: http` to Node.js. NextAuth uses this to decide cookie security: on the CSRF GET it uses NEXTAUTH_URL (https) to set `__Host-` Secure cookies, but on the login POST it may use `X-Forwarded-Proto` to look up cookie names, causing a mismatch. The inconsistent protocol signaling can cause CSRF validation to fail.
+**Fix:** Changed Nginx config to `set $forwarded_proto $scheme; if ($http_x_forwarded_proto) { set $forwarded_proto $http_x_forwarded_proto; }` — this passes through Cloudflare's `X-Forwarded-Proto: https` header when present, falling back to `$scheme` for certbot setups.
+**Rule:** Never use bare `$scheme` for `X-Forwarded-Proto` when the app may be behind a CDN like Cloudflare. Always pass through the upstream proxy's header if present.
+
+### 9. Generic Login Error Message Hides Real Failure (Fixed)
+**Symptom:** Login page shows "Invalid email or password" for ALL auth failures, including CSRF errors, network issues, etc.
+**Root cause:** Login page checked `result?.error` (any truthy value) and showed the same message regardless of error type.
+**Fix:** Login page now shows "Invalid email or password" only for `CredentialsSignin`. For other errors (e.g. `MissingCSRF`), it shows the actual error code so the user can diagnose the issue.
+**Rule:** Always show the specific error type for non-credential errors on the login page.
 
 ### 7. Deprecated Type Stub Packages (Fixed)
 **Symptom:** `npm warn deprecated @types/bcryptjs` and `npm warn deprecated @types/uuid` during installation.
@@ -293,7 +299,7 @@ Known bugs found and fixed — watch for regressions:
 
 ### Unit Tests (no server/database required)
 ```bash
-npm run test:unit    # 63 tests: encryption, imports, config, security, structure
+npm run test:unit    # 64 tests: encryption, imports, config, security, structure
 ```
 
 ### E2E Tests (requires running server + MySQL)
