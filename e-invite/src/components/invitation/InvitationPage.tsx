@@ -19,6 +19,7 @@ interface InvitationData {
   weddingDate: string;
   weddingVenue: string;
   weddingAddress: string;
+  mapPlusCode?: string;
   groomPhoto?: string;
   bridePhoto?: string;
   couplePhoto?: string;
@@ -190,6 +191,7 @@ export default function InvitationPage({
               weddingDate={invitation.weddingDate}
               weddingVenue={invitation.weddingVenue}
               weddingAddress={invitation.weddingAddress}
+              mapPlusCode={invitation.mapPlusCode}
               couplePhoto={invitation.couplePhoto}
               groomPhoto={invitation.groomPhoto}
               bridePhoto={invitation.bridePhoto}

@@ -24,7 +24,7 @@ export default function DesignerPage() {
 
   const fetchInvitations = async () => {
     try {
-      const res = await fetch("/api/invitations");
+      const res = await fetch("/api/invitations", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setInvitations(data);

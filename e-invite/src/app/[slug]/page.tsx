@@ -110,6 +110,7 @@ export default async function PublicInvitationPage({
     weddingDate: invitation.weddingDate.toISOString(),
     weddingVenue: invitation.weddingVenue,
     weddingAddress: invitation.weddingAddress,
+    mapPlusCode: invitation.mapPlusCode,
     groomPhoto: invitation.groomPhoto,
     bridePhoto: invitation.bridePhoto,
     couplePhoto: invitation.couplePhoto,

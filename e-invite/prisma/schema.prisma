@@ -33,6 +33,7 @@ model InvitationLetter {
   weddingDate    DateTime
   weddingVenue   String
   weddingAddress String           @db.Text
+  mapPlusCode    String?
   groomPhoto     String?
   bridePhoto     String?
   couplePhoto    String?

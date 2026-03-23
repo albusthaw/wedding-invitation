@@ -20,6 +20,10 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "CLIENT">("ALL");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState("");
   const [error, setError] = useState("");
 
   const fetchUsers = useCallback(async () => {
@@ -58,6 +62,33 @@ export default function UsersPage() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetId || !resetPassword || resetPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    setResetting(true);
+    try {
+      const res = await fetch(`/api/users/${resetId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: resetPassword }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to reset password");
+      }
+      setResetId(null);
+      setResetPassword("");
+      setResetSuccess("Password reset successfully");
+      setTimeout(() => setResetSuccess(""), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reset password");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const filtered = users.filter((user) => {
     const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
     const matchesSearch =
@@ -87,6 +118,13 @@ export default function UsersPage() {
           Add New User
         </Link>
       </div>
+
+      {/* Success */}
+      {resetSuccess && (
+        <div className="mb-6 p-4 bg-green-900/30 border border-green-700 rounded-lg text-green-300">
+          {resetSuccess}
+        </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -206,6 +244,15 @@ export default function UsersPage() {
                           Edit
                         </Link>
                         <button
+                          onClick={() => { setResetId(user.id); setResetPassword(""); }}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-amber-900/20 hover:bg-amber-900/40 text-amber-400 rounded-lg transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                          </svg>
+                          Reset Password
+                        </button>
+                        <button
                           onClick={() => setDeleteId(user.id)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded-lg transition-colors"
                         >
@@ -260,6 +307,15 @@ export default function UsersPage() {
                     Edit
                   </Link>
                   <button
+                    onClick={() => { setResetId(user.id); setResetPassword(""); }}
+                    className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-sm bg-amber-900/20 hover:bg-amber-900/40 text-amber-400 rounded-lg transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    Reset PW
+                  </button>
+                  <button
                     onClick={() => setDeleteId(user.id)}
                     className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-sm bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded-lg transition-colors"
                   >
@@ -310,6 +366,58 @@ export default function UsersPage() {
               >
                 {deleting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 {deleting ? "Deleting..." : "Delete User"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {resetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !resetting && setResetId(null)} />
+          <div className="relative bg-[#1a1a3e] rounded-xl border border-gray-700 p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-amber-900/30 flex items-center justify-center">
+                <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Reset Password</h3>
+                <p className="text-gray-400 text-sm">
+                  Set a new password for{" "}
+                  <span className="text-white font-medium">{users.find((u) => u.id === resetId)?.name}</span>
+                </p>
+              </div>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                New Password
+              </label>
+              <input
+                type="password"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                placeholder="Minimum 6 characters"
+                className="w-full px-4 py-2.5 bg-[#0f0f23] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setResetId(null)}
+                disabled={resetting}
+                className="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetPassword}
+                disabled={resetting || resetPassword.length < 6}
+                className="px-4 py-2 text-sm font-medium text-black bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {resetting && <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />}
+                {resetting ? "Resetting..." : "Reset Password"}
               </button>
             </div>
           </div>

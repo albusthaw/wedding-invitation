@@ -8,6 +8,7 @@ interface WeddingDetailsProps {
   weddingDate: string;
   weddingVenue: string;
   weddingAddress: string;
+  mapPlusCode?: string;
   couplePhoto?: string;
   groomPhoto?: string;
   bridePhoto?: string;
@@ -20,6 +21,7 @@ export default function WeddingDetails({
   weddingDate,
   weddingVenue,
   weddingAddress,
+  mapPlusCode,
   couplePhoto,
   groomPhoto,
   bridePhoto,
@@ -187,12 +189,27 @@ export default function WeddingDetails({
             <p className="text-xs tracking-[0.3em] uppercase text-white/60 mb-3">
               Venue
             </p>
-            <h3
-              className="text-2xl md:text-3xl text-white mb-2"
-              style={{ fontFamily: "Playfair Display" }}
-            >
-              {weddingVenue}
-            </h3>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <h3
+                className="text-2xl md:text-3xl text-white"
+                style={{ fontFamily: "Playfair Display" }}
+              >
+                {weddingVenue}
+              </h3>
+              {mapPlusCode && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapPlusCode)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#c9a96e]/20 hover:bg-[#c9a96e]/40 text-[#c9a96e] transition-colors shrink-0"
+                  title="Open in Google Maps"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                  </svg>
+                </a>
+              )}
+            </div>
             <p className="text-white/70 text-sm leading-relaxed max-w-md mx-auto">
               {weddingAddress}
             </p>

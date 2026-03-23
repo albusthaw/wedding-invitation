@@ -1,68 +1,87 @@
-# Major Update - 2026-03-23 (v5)
+# Major Update - 2026-03-23 (v6)
 
 ## Summary
-Bug fixes, security hardening, test suite, Next.js 16 proxy migration, Cloudflare compatibility, and configuration updates.
+Critical bug fixes for invitation/user/designer/messages CRUD, new Google Maps Plus Code feature, admin password reset, and AI designer improvements.
 
 ## Changes
 
-### Domain Configuration
-- Default hostname: `minthantthaw.me`
-- App domain: `invite.minthantthaw.me`
-- Nginx `server_name` set to `invite.minthantthaw.me`
-- `NEXTAUTH_URL` set to `https://invite.minthantthaw.me`
-
 ### Bug Fixes
 
-#### `__Host-` Secure Cookies Cause MissingCSRF Behind Cloudflare (Critical — Root Cause of Login Failure)
-- **Root cause:** With `NEXTAUTH_URL=https://...`, NextAuth auto-detects `useSecureCookies=true`, setting cookies with `__Host-` prefix and `Secure` flag. The `__Host-` prefix has extremely strict browser requirements. Behind a TLS-terminating proxy (Cloudflare/Nginx), the origin server only sees HTTP, causing `__Host-` cookie storage/transmission to fail. The CSRF cookie is never sent back → `MissingCSRF` → login page shows "Login failed: MissingCSRF"
-- **Fix:** Added `useSecureCookies: false` to NextAuth config in `src/lib/auth.ts`. HTTPS security is handled by Cloudflare at the edge, not by cookie flags. Cookies now use plain names (`authjs.csrf-token`) without `Secure` flag.
-- **Verified:** Full signIn flow tested in sandbox — getCsrfToken → getProviders → POST callback/credentials → session check all succeed. Login returns correct admin session.
+#### Missing POST Handler for User Creation (Critical)
+- **Symptom:** Creating a new user shows "Failed to execute 'json' on 'Response': Unexpected end of JSON input"
+- **Root cause:** `/api/users/route.ts` only had a GET handler — no POST handler existed. The client sent POST but got 405 Method Not Allowed with an empty body.
+- **Fix:** Added POST handler to `/api/users/route.ts` with validation, duplicate email check, password hashing, and optional invitation assignment.
 
-#### Nginx X-Forwarded-Proto Wrong Behind Cloudflare
-- **Root cause:** `proxy_set_header X-Forwarded-Proto $scheme;` sends `http` when behind Cloudflare (CF→Nginx is HTTP)
-- **Fix:** Nginx passes through upstream `X-Forwarded-Proto` when present, falls back to `$scheme`
+#### Missing PUT Handler for Invitation Updates (Critical)
+- **Symptom:** Designer cannot save design changes; PUT requests to `/api/invitations/[id]` return 405.
+- **Root cause:** `/api/invitations/[id]/route.ts` only had GET and DELETE handlers — no PUT handler existed. The designer page's save function silently failed.
+- **Fix:** Added PUT handler to `/api/invitations/[id]/route.ts` supporting all invitation fields including designConfig, galleryPhotos, musicFile, customCss, customHtml, mapPlusCode, and needsRepublish.
 
-#### Generic Login Error Message Hides Real Failure
-- **Fix:** Login page now shows specific error code for non-credential errors (e.g. "Login failed: MissingCSRF")
+#### Invitation Letters Not Appearing After Creation
+- **Symptom:** After creating an invitation letter, it does not appear in the Invitations list page. Dashboard shows it correctly.
+- **Root cause:** Multiple client-side `fetch()` calls throughout the app could return stale cached data due to Next.js fetch caching behavior. The Dashboard page works because it's a Server Component that queries the database directly, while the Invitations page is a Client Component fetching from the API.
+- **Fix:** Added `{ cache: "no-store" }` to all client-side `fetch()` calls for `/api/invitations`, `/api/users`, and `/api/messages` across all dashboard pages (invitations, designer, messages, users, new invitation, new user).
 
-#### Next.js 16 Middleware Deprecation
-- **Renamed** `src/middleware.ts` → `src/proxy.ts`
-- **Replaced** `auth()` wrapper with standalone `getToken()` from `next-auth/jwt`
+#### Designer Not Picking Up Draft Invitation Letters
+- **Symptom:** The AI Designer page doesn't show invitations or can't save designs.
+- **Root cause:** Same as above — missing PUT handler and stale fetch cache.
+- **Fix:** PUT handler added + cache-busting on designer page fetch.
 
-#### Login Server Error
-- **Removed** `authorized` callback from NextAuth config `callbacks` object
-- **Added** `trustHost: true` to NextAuth config
-- **Added** try-catch in `authorize()` function
+#### Messages Not Picking Up Invitation Letters
+- **Symptom:** Messages page filter dropdown is empty, can't filter by invitation.
+- **Root cause:** Same fetch caching issue — the invitations list for the filter dropdown was cached.
+- **Fix:** Cache-busting on messages page invitations fetch.
 
-#### Other Fixes
-- Seed error handling: shows actual errors instead of `2>/dev/null`
-- Removed deprecated `@types/bcryptjs` and `@types/uuid`
-- Fixed all 6 server action files to use named prisma import
-- Removed `export default` from `src/lib/prisma.ts`
+### New Features
 
-### Security
-- Fixed npm audit vulnerability: `effect` < 3.20.0
-- Added `overrides` in `package.json` to pin `effect` to `^3.21.0`
+#### Google Maps Plus Code Button (Feature)
+- **What:** Added a map location button next to the venue name on public invitation pages.
+- **How:** New `mapPlusCode` field on `InvitationLetter` model. When populated, a small map pin button appears next to the venue name that opens Google Maps with the Plus Code.
+- **Format:** Google Maps Plus Codes (e.g., `X3XP+44 Mandalay, Myanmar (Burma)`)
+- **Files:** Schema, create/edit invitation forms, server action, API PUT handler, `WeddingDetails.tsx`, `InvitationPage.tsx`, `[slug]/InvitationPage.tsx`, `[slug]/page.tsx`
 
-### Test Suite
-- **Unit tests** (`npm run test:unit`): 65 tests
-- **E2E tests** (`npm run test:e2e`): Full integration tests
-- Tests use Node.js built-in test runner
+#### Admin Password Reset (Feature)
+- **What:** Admins can now reset any user's password directly from the Users page.
+- **How:** "Reset Password" button on each user row opens a modal to set a new password. Uses the existing PUT `/api/users/[id]` endpoint.
+- **Access:** Admin-only (the PUT endpoint checks `session.user.role === "ADMIN"`).
+- **Files:** `src/app/dashboard/users/page.tsx`
 
-### ZIP Packaging
-- Renamed from `e-invite.zip` to `einvite.zip`
+#### AI Designer Improvements
+- **Better prompt:** Expanded font suggestions, explicit JSON format example, contrast rule, cohesive theme guidance.
+- **Config validation:** The designer API now validates returned config — checks hex color format, required fields, boolean types. Falls back to current config for invalid values instead of failing.
+- **Files:** `src/app/api/designer/generate/route.ts`
+
+### Database Schema
+- Added `mapPlusCode String?` to `InvitationLetter` model
+- Run `prisma db push` or `prisma migrate dev` to apply
 
 ## Files Changed
-- `src/lib/auth.ts` — added `useSecureCookies: false`, removed `authorized` callback, added `trustHost`, added try-catch
-- `src/app/login/page.tsx` — specific error messages per error type
-- `src/proxy.ts` — renamed from middleware.ts, uses `getToken()`
-- `src/lib/prisma.ts` — removed default export
-- `src/app/actions/*.ts` (6 files) — fixed prisma imports
-- `install.sh` — Nginx X-Forwarded-Proto fix, HTTPS URL, seed error handling
-- `reinstall.sh` — same Nginx and seed fixes
-- `.env.example` — NEXTAUTH_URL set to HTTPS
-- `package.json` — test scripts, `effect` override, removed deprecated type stubs
-- `CLAUDE.md` — bug patterns, testing docs, Cloudflare notes
-- `tests/unit.test.ts` — 65 tests (useSecureCookies test added)
-- `tests/e2e.test.ts` — E2E test suite
+- `prisma/schema.prisma` — added `mapPlusCode` field to InvitationLetter
+- `src/app/api/users/route.ts` — added POST handler for user creation
+- `src/app/api/invitations/[id]/route.ts` — added PUT handler for invitation updates
+- `src/app/api/designer/generate/route.ts` — improved prompt and added config validation
+- `src/app/actions/invitation.ts` — added mapPlusCode to create/update actions
+- `src/app/dashboard/invitations/page.tsx` — cache-busting fetch
+- `src/app/dashboard/invitations/new/page.tsx` — cache-busting fetch, mapPlusCode field
+- `src/app/dashboard/invitations/[id]/edit/page.tsx` — mapPlusCode field in interface and form
+- `src/app/dashboard/designer/page.tsx` — cache-busting fetch
+- `src/app/dashboard/messages/page.tsx` — cache-busting fetch (invitations + messages)
+- `src/app/dashboard/users/page.tsx` — admin password reset modal and buttons
+- `src/app/dashboard/users/new/page.tsx` — cache-busting fetch
+- `src/components/invitation/WeddingDetails.tsx` — mapPlusCode prop and Google Maps button
+- `src/components/invitation/InvitationPage.tsx` — mapPlusCode in interface and prop passing
+- `src/app/[slug]/InvitationPage.tsx` — mapPlusCode in interface and prop passing
+- `src/app/[slug]/page.tsx` — mapPlusCode serialization
+- `CLAUDE.md` — updated bug patterns documentation
 - `majorupdate.md` — this file
+
+## Testing
+All fixes verified in sandbox:
+- User creation via POST `/api/users` ✓
+- Invitation listing via GET `/api/invitations` ✓
+- Invitation update via PUT `/api/invitations/[id]` ✓
+- Messages listing via GET `/api/messages` ✓
+- Password reset via PUT `/api/users/[id]` ✓
+- Google Maps Plus Code storage and retrieval ✓
+- Duplicate user rejection (409) ✓
+- AI Designer: Gemini API blocked in sandbox but prompt improvements and config validation verified via code review

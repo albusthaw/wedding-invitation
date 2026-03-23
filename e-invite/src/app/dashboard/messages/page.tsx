@@ -32,7 +32,7 @@ export default function MessagesPage() {
       const url = selectedInvitation
         ? `/api/messages?invitationId=${selectedInvitation}`
         : "/api/messages";
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch messages");
       const data = await res.json();
       setMessages(data);
@@ -44,7 +44,7 @@ export default function MessagesPage() {
   }, [selectedInvitation]);
 
   useEffect(() => {
-    fetch("/api/invitations")
+    fetch("/api/invitations", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {
