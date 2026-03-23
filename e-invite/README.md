@@ -150,6 +150,23 @@ After installation:
 4. Preview in phone/tablet/desktop mode
 5. Save and Publish
 
+### Photo Upload & Optimization
+- Supports JPG, PNG, WebP up to 5MB
+- Images exceeding 2000x2000px or 2MB are automatically resized and compressed
+- AI feedback is shown when photos are optimized, guiding users to ideal sizes
+- Use the AI Designer to request further image style adjustments
+
+## Packaging for Distribution
+
+Create a distributable ZIP archive:
+
+```bash
+chmod +x package.sh
+./package.sh
+```
+
+Output: `e-invite-v{version}-{timestamp}.zip` in the parent directory. Deploy by unzipping on a VPS and running `install.sh`.
+
 ## Project Structure
 
 ```
@@ -162,6 +179,7 @@ e-invite/
 │   ├── lib/          # Utilities (auth, prisma, encryption, gemini)
 │   └── types/        # TypeScript type definitions
 ├── install.sh        # VPS installation script
+├── package.sh        # ZIP packaging script
 └── package.json      # Dependencies
 ```
 

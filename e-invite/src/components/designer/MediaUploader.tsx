@@ -26,6 +26,7 @@ export default function MediaUploader({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState("");
+  const [optimizationInfo, setOptimizationInfo] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isImage = type === "gallery";
@@ -77,8 +78,13 @@ export default function MediaUploader({
         }
 
         const data = await response.json();
-        if (data.url) {
-          uploadedUrls.push(data.url);
+        if (data.url || data.path) {
+          uploadedUrls.push(data.url || data.path);
+        }
+
+        // Show AI optimization feedback if photo was too big
+        if (data.wasOptimized && data.aiSuggestion) {
+          setOptimizationInfo(data.aiSuggestion);
         }
 
         setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
@@ -258,6 +264,25 @@ export default function MediaUploader({
           className="hidden"
         />
       </div>
+
+      {/* AI optimization feedback */}
+      {optimizationInfo && (
+        <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <svg className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          <p className="text-xs text-amber-400 flex-1">{optimizationInfo}</p>
+          <button
+            type="button"
+            onClick={() => setOptimizationInfo("")}
+            className="ml-auto text-amber-400/60 hover:text-amber-400 shrink-0"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Error message */}
       {error && (

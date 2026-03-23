@@ -15,7 +15,9 @@ const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp3"];
 const ALL_ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_AUDIO_TYPES];
 
 const MAX_IMAGE_WIDTH = 2000;
+const MAX_IMAGE_HEIGHT = 2000;
 const TWO_MB = 2 * 1024 * 1024;
+const RECOMMENDED_MAX_KB = 500;
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -59,15 +61,18 @@ export async function POST(request: NextRequest) {
 
       // Get image metadata to check dimensions
       const metadata = await sharp(buffer).metadata();
+      const originalWidth = metadata.width || 0;
+      const originalHeight = metadata.height || 0;
       const needsResize =
-        metadata.width && metadata.width > MAX_IMAGE_WIDTH;
+        originalWidth > MAX_IMAGE_WIDTH || originalHeight > MAX_IMAGE_HEIGHT;
       const needsCompress = buffer.length > TWO_MB;
+      const wasOversized = needsResize || needsCompress;
 
       if (needsResize || needsCompress) {
         let sharpInstance = sharp(buffer);
 
         if (needsResize) {
-          sharpInstance = sharpInstance.resize(MAX_IMAGE_WIDTH, undefined, {
+          sharpInstance = sharpInstance.resize(MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT, {
             fit: "inside",
             withoutEnlargement: true,
           });
@@ -93,11 +98,27 @@ export async function POST(request: NextRequest) {
       const filePath = join(uploadDir, fileName);
       await writeFile(filePath, processedBuffer);
 
+      const url = `/uploads/photos/${fileName}`;
+      const finalSizeKB = Math.round(processedBuffer.length / 1024);
+
+      // Build AI optimization suggestion if the photo was oversized
+      let aiSuggestion: string | null = null;
+      if (wasOversized) {
+        const originalSizeKB = Math.round(buffer.length / 1024);
+        aiSuggestion = `Photo was automatically optimized: ${originalWidth}x${originalHeight} (${originalSizeKB}KB) → resized/compressed to ${finalSizeKB}KB. ` +
+          `For best results, upload photos under ${MAX_IMAGE_WIDTH}x${MAX_IMAGE_HEIGHT}px and ${TWO_MB / 1024}KB. ` +
+          `Use the AI Designer to request further image adjustments like cropping or style changes.`;
+      }
+
       return NextResponse.json({
         success: true,
-        path: `/uploads/photos/${fileName}`,
+        url,
+        path: url,
         size: processedBuffer.length,
         originalSize: buffer.length,
+        originalDimensions: { width: originalWidth, height: originalHeight },
+        wasOptimized: wasOversized,
+        aiSuggestion,
       });
     }
 
@@ -108,9 +129,12 @@ export async function POST(request: NextRequest) {
       const filePath = join(uploadDir, fileName);
       await writeFile(filePath, buffer);
 
+      const url = `/uploads/music/${fileName}`;
+
       return NextResponse.json({
         success: true,
-        path: `/uploads/music/${fileName}`,
+        url,
+        path: url,
         size: buffer.length,
       });
     }
