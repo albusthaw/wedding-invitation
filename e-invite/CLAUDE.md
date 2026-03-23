@@ -85,6 +85,7 @@ e-invite/
 ├── .env                       # Environment variables
 ├── .env.example               # Environment template
 ├── install.sh                 # VPS installation script
+├── package.sh                 # ZIP packaging script
 ├── next.config.ts             # Next.js configuration
 ├── package.json               # Dependencies
 ├── postcss.config.mjs         # PostCSS config
@@ -153,6 +154,27 @@ npx prisma studio    # Open Prisma Studio GUI
 | GEMINI_API_KEY | Google Gemini API key | (empty) |
 | GEMINI_MODEL | Gemini model name | gemini-3.1-flash-lite-preview |
 
+## Photo Upload & AI Optimization
+- Upload endpoint validates image dimensions (max 2000x2000) and file size (max 2MB)
+- Oversized images are automatically resized and compressed via Sharp
+- When a photo is optimized, the API returns `wasOptimized: true` and an `aiSuggestion` string
+- The MediaUploader component displays this AI feedback to guide the user
+- Users can use the AI Designer chat to request further image adjustments
+
+## ZIP Packaging
+Run `./package.sh` to create a distributable ZIP archive:
+- Excludes `node_modules/`, `.next/`, `.env`, uploaded files, `.git/`
+- Output: `e-invite-v{version}-{timestamp}.zip` in the parent directory
+- The ZIP can be deployed by unzipping on a VPS and running `install.sh`
+
+## Hold / Continue Protocol
+When the user says "Hold", the protocol is:
+1. Push all current work to the branch
+2. Create `tocontinue.md` in the project root with exact next steps
+3. Stop work
+
+When the user says "Restart", pick up from `tocontinue.md` and continue.
+
 ## Notes for AI Assistants
 - This uses Next.js App Router (not Pages Router)
 - Server Components are default; use "use client" only for interactive components
@@ -162,3 +184,4 @@ npx prisma studio    # Open Prisma Studio GUI
 - Auth is configured in `src/lib/auth.ts`; middleware in `src/middleware.ts`
 - The public invitation page is at `src/app/[slug]/`
 - All file uploads go to `public/uploads/`
+- When resuming work, check `tocontinue.md` for pending tasks
