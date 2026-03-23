@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  // Disable __Host-/__Secure- cookie prefixes and Secure flag.
+  // HTTPS is handled by Cloudflare at the edge, not by cookie flags.
+  // __Host- cookies fail when the app server runs behind a TLS-terminating proxy
+  // (Cloudflare/Nginx) because the origin server only sees HTTP.
+  useSecureCookies: false,
   session: {
     strategy: "jwt",
   },

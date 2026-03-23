@@ -440,6 +440,14 @@ describe("Security Checks", () => {
     );
   });
 
+  it("should disable secure cookies (HTTPS handled by Cloudflare, not cookie flags)", () => {
+    const auth = readFileSync(join(PROJECT_ROOT, "src/lib/auth.ts"), "utf8");
+    assert.ok(
+      auth.includes("useSecureCookies: false") || auth.includes("useSecureCookies:false"),
+      "Auth config should set useSecureCookies: false to avoid __Host- cookie issues behind TLS proxy"
+    );
+  });
+
   it("should protect dashboard routes in proxy", () => {
     const proxy = readFileSync(join(PROJECT_ROOT, "src/proxy.ts"), "utf8");
     assert.ok(

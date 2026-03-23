@@ -1,4 +1,4 @@
-# Major Update - 2026-03-23 (v4)
+# Major Update - 2026-03-23 (v5)
 
 ## Summary
 Bug fixes, security hardening, test suite, Next.js 16 proxy migration, Cloudflare compatibility, and configuration updates.
@@ -13,58 +13,56 @@ Bug fixes, security hardening, test suite, Next.js 16 proxy migration, Cloudflar
 
 ### Bug Fixes
 
-#### Nginx X-Forwarded-Proto Breaks Login Behind Cloudflare (Critical)
-- **Root cause:** Nginx config used `proxy_set_header X-Forwarded-Proto $scheme;`. With Cloudflare (Browser→HTTPS→Cloudflare→HTTP→Nginx→Node), `$scheme` is `http` because Cloudflare→Nginx is HTTP. This overwrites Cloudflare's `X-Forwarded-Proto: https`, causing inconsistent protocol signaling between CSRF cookie creation and CSRF validation — resulting in `MissingCSRF` errors displayed as "Invalid email or password"
-- **Fix:** Nginx now passes through upstream proxy's `X-Forwarded-Proto` when present (`$http_x_forwarded_proto`), falling back to `$scheme` for certbot setups. Works with both Cloudflare and direct SSL
-- **Verified:** End-to-end test with MySQL, production build, manual cookie injection simulating Cloudflare HTTPS browser
+#### `__Host-` Secure Cookies Cause MissingCSRF Behind Cloudflare (Critical — Root Cause of Login Failure)
+- **Root cause:** With `NEXTAUTH_URL=https://...`, NextAuth auto-detects `useSecureCookies=true`, setting cookies with `__Host-` prefix and `Secure` flag. The `__Host-` prefix has extremely strict browser requirements. Behind a TLS-terminating proxy (Cloudflare/Nginx), the origin server only sees HTTP, causing `__Host-` cookie storage/transmission to fail. The CSRF cookie is never sent back → `MissingCSRF` → login page shows "Login failed: MissingCSRF"
+- **Fix:** Added `useSecureCookies: false` to NextAuth config in `src/lib/auth.ts`. HTTPS security is handled by Cloudflare at the edge, not by cookie flags. Cookies now use plain names (`authjs.csrf-token`) without `Secure` flag.
+- **Verified:** Full signIn flow tested in sandbox — getCsrfToken → getProviders → POST callback/credentials → session check all succeed. Login returns correct admin session.
+
+#### Nginx X-Forwarded-Proto Wrong Behind Cloudflare
+- **Root cause:** `proxy_set_header X-Forwarded-Proto $scheme;` sends `http` when behind Cloudflare (CF→Nginx is HTTP)
+- **Fix:** Nginx passes through upstream `X-Forwarded-Proto` when present, falls back to `$scheme`
 
 #### Generic Login Error Message Hides Real Failure
-- **Root cause:** Login page showed "Invalid email or password" for ALL auth errors, including `MissingCSRF`, `CallbackRouteError`, etc.
-- **Fix:** Login page now shows specific error code for non-credential errors (e.g. "Login failed: MissingCSRF") so users can diagnose the actual issue
+- **Fix:** Login page now shows specific error code for non-credential errors (e.g. "Login failed: MissingCSRF")
 
 #### Next.js 16 Middleware Deprecation
-- **Renamed** `src/middleware.ts` → `src/proxy.ts` — Next.js 16 deprecated the `middleware.ts` file convention in favor of `proxy.ts`
-- **Replaced** `auth()` wrapper from NextAuth v5 with standalone proxy function using `getToken()` from `next-auth/jwt`
-- **Result:** No more deprecation warning on startup
+- **Renamed** `src/middleware.ts` → `src/proxy.ts`
+- **Replaced** `auth()` wrapper with standalone `getToken()` from `next-auth/jwt`
 
 #### Login Server Error
 - **Removed** `authorized` callback from NextAuth config `callbacks` object
-- **Added** `trustHost: true` to NextAuth config for reverse proxy operation
-- **Added** try-catch error handling in `authorize()` function
+- **Added** `trustHost: true` to NextAuth config
+- **Added** try-catch in `authorize()` function
 
-#### Seed Error Handling
-- **Fixed** seed command in install.sh/reinstall.sh: shows actual errors instead of suppressing stderr with `2>/dev/null`
-
-#### Deprecated Type Stub Packages
-- **Removed** `@types/bcryptjs` and `@types/uuid` from dependencies
-
-#### Prisma Import Inconsistency
-- **Fixed** all 6 server action files to use `import { prisma }` (named import)
-- **Removed** `export default` from `src/lib/prisma.ts`
+#### Other Fixes
+- Seed error handling: shows actual errors instead of `2>/dev/null`
+- Removed deprecated `@types/bcryptjs` and `@types/uuid`
+- Fixed all 6 server action files to use named prisma import
+- Removed `export default` from `src/lib/prisma.ts`
 
 ### Security
-- **Fixed** npm audit vulnerability: `effect` < 3.20.0
+- Fixed npm audit vulnerability: `effect` < 3.20.0
 - Added `overrides` in `package.json` to pin `effect` to `^3.21.0`
 
-### Test Suite (New)
-- **Unit tests** (`npm run test:unit`): 64 tests
+### Test Suite
+- **Unit tests** (`npm run test:unit`): 65 tests
 - **E2E tests** (`npm run test:e2e`): Full integration tests
-- Tests use Node.js built-in test runner (no additional dependencies)
+- Tests use Node.js built-in test runner
 
 ### ZIP Packaging
 - Renamed from `e-invite.zip` to `einvite.zip`
 
 ## Files Changed
-- `package.json` — test scripts, `effect` override, removed `@types/bcryptjs` and `@types/uuid`
-- `src/middleware.ts` → `src/proxy.ts` — renamed for Next.js 16, uses `getToken()`
-- `src/lib/auth.ts` — removed `authorized` callback, added `trustHost`, added try-catch
-- `src/lib/prisma.ts` — removed default export
+- `src/lib/auth.ts` — added `useSecureCookies: false`, removed `authorized` callback, added `trustHost`, added try-catch
 - `src/app/login/page.tsx` — specific error messages per error type
+- `src/proxy.ts` — renamed from middleware.ts, uses `getToken()`
+- `src/lib/prisma.ts` — removed default export
 - `src/app/actions/*.ts` (6 files) — fixed prisma imports
-- `.env.example` — NEXTAUTH_URL set to HTTPS
-- `install.sh` — Nginx X-Forwarded-Proto fix, seed error handling, HTTPS URL
+- `install.sh` — Nginx X-Forwarded-Proto fix, HTTPS URL, seed error handling
 - `reinstall.sh` — same Nginx and seed fixes
+- `.env.example` — NEXTAUTH_URL set to HTTPS
+- `package.json` — test scripts, `effect` override, removed deprecated type stubs
 - `CLAUDE.md` — bug patterns, testing docs, Cloudflare notes
-- `tests/unit.test.ts` — 64 tests (Nginx proxy header test added)
+- `tests/unit.test.ts` — 65 tests (useSecureCookies test added)
 - `tests/e2e.test.ts` — E2E test suite
 - `majorupdate.md` — this file
