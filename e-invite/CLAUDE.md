@@ -81,7 +81,7 @@ e-invite/
 │   │   ├── index.ts           # App TypeScript types
 │   │   └── next-auth.d.ts     # NextAuth type augmentation
 │   ├── auth.ts                # Auth re-exports
-│   └── middleware.ts          # Route protection middleware
+│   └── proxy.ts              # Route protection proxy (Next.js 16)
 ├── .env                       # Environment variables
 ├── .env.example               # Environment template
 ├── install.sh                 # VPS installation script (fresh server)
@@ -213,8 +213,10 @@ cd ..
 ```bash
 unzip einvite.zip -d e-invite
 cd e-invite
-chmod +x install.sh
-sudo ./install.sh
+chmod +x install.sh reinstall.sh
+sudo ./install.sh          # Fresh server
+# OR
+sudo ./reinstall.sh        # Existing server (drops DB, preserves uploads)
 ```
 
 `install.sh` will automatically:
@@ -252,7 +254,7 @@ Known bugs found and fixed — watch for regressions:
 ### 2. NextAuth `authorized` Callback in Wrong Location (Fixed)
 **Symptom:** Server error on login, unexpected middleware conflicts.
 **Root cause:** The `authorized` callback was placed inside the `callbacks` object in the NextAuth config. In NextAuth v5, `authorized` is a middleware-only callback — it belongs in the middleware wrapper (`auth()`), not in the config `callbacks`.
-**Rule:** Never add `authorized` to the callbacks object in `src/lib/auth.ts`. Route protection logic belongs in `src/middleware.ts`.
+**Rule:** Never add `authorized` to the callbacks object in `src/lib/auth.ts`. Route protection logic belongs in `src/proxy.ts`.
 
 ### 3. Missing `trustHost` for Reverse Proxy (Fixed)
 **Symptom:** Login fails with CSRF/callback URL errors when running behind Nginx.
@@ -269,11 +271,23 @@ Known bugs found and fixed — watch for regressions:
 **Root cause:** Prisma's `@prisma/config` depends on `effect` which had an AsyncLocalStorage context leak.
 **Rule:** The `overrides` field in `package.json` pins `effect` to `^3.21.0`. Do not remove this override until Prisma ships a fix natively.
 
+### 6. Next.js 16 Middleware Deprecation + Login Failure (Fixed)
+**Symptom:** `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.` warning on startup. Login fails with "Invalid email or password" even with correct credentials.
+**Root cause:** Next.js 16 renamed `middleware.ts` to `proxy.ts`. The old `auth()` wrapper from NextAuth v5 wraps `NextResponse.next()` in `new Response()` inside its `handleAuth()` function, which can interfere with Next.js 16's proxy request forwarding — the auth callback response gets swallowed instead of reaching the route handler.
+**Fix:** Renamed `src/middleware.ts` → `src/proxy.ts`. Replaced the `auth()` wrapper with a standalone proxy function that uses `getToken()` from `next-auth/jwt` to check authentication status directly, avoiding the wrapper's response transformation issue.
+**Rule:** Never use `export default auth(...)` in `src/proxy.ts`. Use `getToken()` from `next-auth/jwt` for session checks in the proxy. The file must be named `proxy.ts`, not `middleware.ts`.
+
+### 7. Deprecated Type Stub Packages (Fixed)
+**Symptom:** `npm warn deprecated @types/bcryptjs` and `npm warn deprecated @types/uuid` during installation.
+**Root cause:** bcryptjs 3.x and uuid 13.x now ship their own TypeScript types. The separate `@types/*` packages are no longer needed and show deprecation warnings.
+**Fix:** Removed `@types/bcryptjs` and `@types/uuid` from dependencies.
+**Rule:** Do not re-add `@types/bcryptjs` or `@types/uuid` to `package.json`.
+
 ## Testing
 
 ### Unit Tests (no server/database required)
 ```bash
-npm run test:unit    # 62 tests: encryption, imports, config, security, structure
+npm run test:unit    # 63 tests: encryption, imports, config, security, structure
 ```
 
 ### E2E Tests (requires running server + MySQL)
@@ -290,7 +304,7 @@ npm run test:e2e     # Auth flow, API endpoints, route protection, security
 - **Configuration**: package.json scripts, dependencies, env vars, auth config
 - **Install script**: domain config, Nginx, NEXTAUTH_URL, required packages
 - **Prisma schema**: all models, required fields, cascade deletes
-- **Security**: no hardcoded secrets, bcrypt usage, try-catch in auth, middleware protection
+- **Security**: no hardcoded secrets, bcrypt usage, try-catch in auth, proxy route protection
 - **E2E auth**: CSRF tokens, providers, login/logout, session data
 - **E2E API**: invitations, users, messages, RSVP, settings, upload (auth + validation)
 - **E2E route protection**: dashboard redirect, API auth checks
@@ -301,7 +315,7 @@ npm run test:e2e     # Auth flow, API endpoints, route protection, security
 - Server Actions are in `src/app/actions/`
 - API routes are in `src/app/api/`
 - Prisma client is a singleton in `src/lib/prisma.ts`
-- Auth is configured in `src/lib/auth.ts`; middleware in `src/middleware.ts`
+- Auth is configured in `src/lib/auth.ts`; route protection in `src/proxy.ts`
 - The public invitation page is at `src/app/[slug]/`
 - All file uploads go to `public/uploads/`
 - When resuming work, check `tocontinue.md` for pending tasks

@@ -111,7 +111,7 @@ describe("File Structure", () => {
     "src/lib/encryption.ts",
     "src/lib/gemini.ts",
     "src/auth.ts",
-    "src/middleware.ts",
+    "src/proxy.ts",
     "src/app/layout.tsx",
     "src/app/page.tsx",
     "src/app/login/page.tsx",
@@ -432,15 +432,15 @@ describe("Security Checks", () => {
     );
   });
 
-  it("should protect dashboard routes in middleware", () => {
-    const middleware = readFileSync(join(PROJECT_ROOT, "src/middleware.ts"), "utf8");
+  it("should protect dashboard routes in proxy", () => {
+    const proxy = readFileSync(join(PROJECT_ROOT, "src/proxy.ts"), "utf8");
     assert.ok(
-      middleware.includes("/dashboard"),
-      "Middleware should check dashboard routes"
+      proxy.includes("/dashboard"),
+      "Proxy should check dashboard routes"
     );
     assert.ok(
-      middleware.includes("isLoggedIn"),
-      "Middleware should check login status"
+      proxy.includes("getToken"),
+      "Proxy should use getToken to check login status"
     );
   });
 });
