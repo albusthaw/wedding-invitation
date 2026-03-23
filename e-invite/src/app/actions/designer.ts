@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getGeminiClient, generateDesign } from "@/lib/gemini";
 import { getSetting } from "@/app/actions/settings";
 import sharp from "sharp";
