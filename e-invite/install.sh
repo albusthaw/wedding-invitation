@@ -153,23 +153,31 @@ setup_application() {
     print_step "Setting up E-Invite application..."
 
     APP_DIR="/opt/einvite"
-
-    # Create app directory
-    mkdir -p $APP_DIR
-
-    # Copy application files (assuming script is run from the e-invite directory)
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    if [ -f "$SCRIPT_DIR/package.json" ]; then
-        cp -r "$SCRIPT_DIR"/* "$APP_DIR/"
-        cp -r "$SCRIPT_DIR"/.env* "$APP_DIR/" 2>/dev/null || true
-        cp -r "$SCRIPT_DIR"/.next* "$APP_DIR/" 2>/dev/null || true
-    else
+    if [ ! -f "$SCRIPT_DIR/package.json" ]; then
         print_error "package.json not found. Run this script from the e-invite directory."
         exit 1
     fi
 
-    cd $APP_DIR
+    # Resolve both paths to handle symlinks and trailing slashes
+    REAL_SCRIPT_DIR="$(readlink -f "$SCRIPT_DIR")"
+    REAL_APP_DIR="$(readlink -f "$APP_DIR" 2>/dev/null || echo "$APP_DIR")"
+
+    if [ "$REAL_SCRIPT_DIR" = "$REAL_APP_DIR" ]; then
+        print_success "Already running from $APP_DIR, skipping copy"
+    else
+        mkdir -p "$APP_DIR"
+        # Use rsync if available for cleaner copy, fallback to cp
+        if command -v rsync &> /dev/null; then
+            rsync -a --exclude='node_modules' --exclude='.next' --exclude='.git' "$SCRIPT_DIR/" "$APP_DIR/"
+        else
+            cp -a "$SCRIPT_DIR"/. "$APP_DIR/"
+        fi
+        print_success "Application copied to $APP_DIR"
+    fi
+
+    cd "$APP_DIR"
 
     # Read DB password
     DB_PASSWORD=$(cat /tmp/.einvite_db_password 2>/dev/null || echo "password")
