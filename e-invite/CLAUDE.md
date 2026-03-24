@@ -32,6 +32,7 @@ e-invite/
 │   │   │   ├── auth/          # NextAuth endpoints
 │   │   │   ├── designer/      # AI designer endpoints
 │   │   │   ├── invitations/   # Invitation CRUD
+│   │   │   ├── invitees/      # Invitee CRUD + bulk import
 │   │   │   ├── messages/      # Public messages endpoint
 │   │   │   ├── rsvp/          # Public RSVP endpoint
 │   │   │   ├── settings/      # Settings + Gemini test
@@ -47,6 +48,7 @@ e-invite/
 │   │   ├── dashboard/         # Admin dashboard pages
 │   │   │   ├── designer/      # AI Designer page
 │   │   │   ├── invitations/   # Invitation management
+│   │   │   ├── invitees/      # Invitee management (CRUD, CSV, links)
 │   │   │   ├── messages/      # Messages management
 │   │   │   ├── settings/      # Settings page
 │   │   │   └── users/         # User management
@@ -321,6 +323,29 @@ Known bugs found and fixed — watch for regressions:
 **Root cause:** Browser or Next.js may cache client-side `fetch()` responses. Client component pages fetch from API routes, while the Dashboard queries Prisma directly as a Server Component.
 **Fix:** Added `{ cache: "no-store" }` to all client-side `fetch()` calls for API data.
 **Rule:** Always use `{ cache: "no-store" }` for client-side fetches that need fresh data. Server Components query Prisma directly and don't have this issue.
+
+### 14. Missing POST Handler for Messages/Blessings (Fixed)
+**Symptom:** "Send Blessing" button submits but message never appears. No error shown.
+**Root cause:** `/api/messages/route.ts` only had GET and DELETE handlers. The MessageWall component POSTs to `/api/messages` but got 405.
+**Fix:** Added POST handler to `/api/messages/route.ts` with validation and IP-based one-time limiting.
+**Rule:** The MessageWall sends blessings via `POST /api/messages`. This handler must exist and be public (no auth required).
+
+### 15. URL Slug Not Editable After Creation (Fixed)
+**Symptom:** Custom slug changes are lost when saving an invitation letter edit.
+**Root cause:** The edit page displayed slug as read-only text. The `updateInvitation` server action never read a `slug` field from formData.
+**Fix:** Made slug editable in the edit form. Added slug handling to `updateInvitation` with sanitization and uniqueness check.
+**Rule:** Slug updates must be validated for uniqueness (excluding current record) and sanitized to lowercase alphanumeric + hyphens.
+
+### 16. No Wedding Time Field (Fixed)
+**Symptom:** No way to set a wedding time. Only date was available.
+**Root cause:** The create/edit forms only had a date input. The `weddingDate` DateTime field stored midnight by default.
+**Fix:** Added time input to both new and edit pages. Server action now combines date + time into a single DateTime.
+**Rule:** Wedding time is stored in the `weddingDate` DateTime field (date + time combined). Both date and time inputs are required.
+
+### 17. IP-Based One-Time RSVP/Blessing Submission (Feature)
+**What:** RSVP and Send Blessing can only be submitted once per IP address per invitation letter.
+**How:** New `RsvpSubmission` model with `@@unique([ip, invitationId])`. New `senderIp` field on `Message`. Both `/api/rsvp` and `/api/messages` POST handlers check for existing submissions and return 429 if duplicate.
+**Rule:** IP limiting is per-invitation-letter, not global. Different invitation letters get independent limits. The `x-forwarded-for` header is used for IP detection (works behind Nginx/Cloudflare).
 
 ## Testing
 

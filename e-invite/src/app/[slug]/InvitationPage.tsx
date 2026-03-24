@@ -232,8 +232,8 @@ export default function InvitationPage({
                 >
                   {invitation.groomName} &amp; {invitation.brideName}
                 </p>
-                <p className="text-white/40 text-xs tracking-widest">
-                  Made with ♥ using E-Invite
+                <p className="text-white/20 text-xs tracking-widest">
+                  {new Date(invitation.weddingDate).getFullYear()}
                 </p>
               </motion.div>
             </section>

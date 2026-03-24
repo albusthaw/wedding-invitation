@@ -15,6 +15,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing invitationId" }, { status: 400 });
     }
 
+    // Get client IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown";
+
+    // Check IP-based one-time submission per invitation letter
+    const existingRsvp = await prisma.rsvpSubmission.findUnique({
+      where: { ip_invitationId: { ip, invitationId } },
+    });
+    if (existingRsvp) {
+      return NextResponse.json(
+        { error: "You have already submitted your RSVP for this invitation." },
+        { status: 429 }
+      );
+    }
+
     // Update invitee RSVP if inviteeId provided
     if (inviteeId) {
       await prisma.invitee.update({
@@ -34,9 +50,15 @@ export async function POST(request: NextRequest) {
           content: message,
           senderName: name || "Guest",
           invitationId,
+          senderIp: ip,
         },
       });
     }
+
+    // Record the RSVP submission for IP tracking
+    await prisma.rsvpSubmission.create({
+      data: { ip, invitationId },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

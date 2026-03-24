@@ -249,13 +249,33 @@ export default function DesignerModal({
     setMusicFile(null);
   }
 
+  const handleGalleryReorder = useCallback((order: number[]) => {
+    setGalleryPhotos((prev) => {
+      const reordered: string[] = [];
+      for (const idx of order) {
+        if (idx >= 0 && idx < prev.length) {
+          reordered.push(prev[idx]);
+        }
+      }
+      // Add any photos not in the order array at the end
+      for (let i = 0; i < prev.length; i++) {
+        if (!order.includes(i)) {
+          reordered.push(prev[i]);
+        }
+      }
+      return reordered;
+    });
+  }, []);
+
   // ── Tab content renderers ──────────────────────────────────────────
   function renderAITab() {
     return (
       <AIChatPanel
         currentConfig={config}
         onApplyConfig={handleAIApplyConfig}
+        onReorderGallery={handleGalleryReorder}
         invitationId={invitation.id}
+        galleryPhotos={galleryPhotos}
       />
     );
   }
