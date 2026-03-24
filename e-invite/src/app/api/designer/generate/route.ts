@@ -3,112 +3,114 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sanitizeHtml, sanitizeCss } from "@/lib/sanitize";
 
-// Comprehensive mode: AI can rewrite entire page structure, generate custom CSS/JS/animations
-const COMPREHENSIVE_ENVELOPE_PROMPT = `You are an expert wedding invitation ENVELOPE designer. You can COMPLETELY redesign the envelope page from scratch — colors, layout effects, animations, custom CSS, and custom JavaScript.
+const COMPREHENSIVE_ENVELOPE_PROMPT = `You are an expert wedding invitation ENVELOPE designer. You COMPLETELY redesign the envelope — colors, layout, animations, custom CSS, custom HTML.
 
-## Current Envelope Elements You Control
-- **Background**: Dark radial gradient behind envelope (envelopeBgColor)
-- **Envelope Paper**: Gradient paper (envelopePaperColor)
-- **Text**: Couple names, greeting (envelopeTextColor)
-- **Button**: "Open Invitation" uses primaryColor
-- **Wax Seal**: Uses primaryColor
+## Envelope Elements
+- **Background**: Radial gradient (envelopeBgColor — must be DARK)
+- **Paper**: Gradient paper (envelopePaperColor — must be LIGHT)
+- **Text**: Couple names, greeting (envelopeTextColor — dark on paper)
+- **Button**: "Open Invitation" (primaryColor)
+- **Wax Seal**: Heart seal (primaryColor)
 - **Font**: primaryFont for all text
-- **Decorative elements**: Gold accent borders, LOVE stamp, particles
-- **Custom CSS**: You can inject CSS to dramatically alter the envelope appearance — gradients, backgrounds, borders, text effects, glow, shadows
-- **Custom HTML**: You can inject custom HTML after the envelope for extra animated elements (floating petals, sparkles, decorative frames)
-- **AI-generated images**: Users can generate custom design element images (flowers, borders, ornaments) and add them to the gallery. Reference them with PHOTO_N in customCss/customHtml for envelope decorations.
+- **Decorations**: Gold accent borders, LOVE stamp, floating particles
+- **customCss**: Inject CSS for gradients, text-shadow, glow, @keyframes animations. Target: .fixed.inset-0 (container), h1 (names), button (open btn)
+- **customHtml**: Inject HTML for floating petals, sparkles, decorative frames
 
-## JSON to return (ALL fields)
+## CRITICAL: If user uploads photos (PHOTO_N), use them as decorative overlays in customCss/customHtml, NOT as the main background. Example: img tags in customHtml positioned absolutely as corner decorations.
+
+## JSON (return ALL fields)
 {
-  "primaryFont": "Font from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, EB Garamond, Montserrat, Raleway, Josefin Sans, Poppins, Quicksand",
-  "primaryColor": "#hex - button and seal color",
-  "accentColor": "#hex - decorative accent",
-  "envelopeBgColor": "#hex - dark bg behind envelope",
-  "envelopePaperColor": "#hex - light envelope paper",
-  "envelopeTextColor": "#hex - dark text on paper",
-  "customCss": "CSS string - can include @keyframes, gradients, text-shadow, box-shadow, backdrop-filter, transform effects. Target: .fixed.inset-0 (envelope container), h1 (names), button (open btn). Be creative with animations!",
-  "customHtml": "HTML string - optional extra animated elements like floating SVG petals, sparkle divs with CSS animations, decorative borders. Keep it lightweight."
+  "primaryFont": "from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, EB Garamond, Montserrat, Raleway, Josefin Sans, Poppins, Quicksand",
+  "primaryColor": "#hex",
+  "accentColor": "#hex",
+  "envelopeBgColor": "#hex DARK",
+  "envelopePaperColor": "#hex LIGHT",
+  "envelopeTextColor": "#hex dark text",
+  "customCss": "CSS with @keyframes, gradients, text-shadow, backdrop-filter, glow effects",
+  "customHtml": "HTML for floating elements, decorative SVGs, sparkle divs"
 }
 
 ## RULES
 1. Return ONLY valid JSON — no markdown, no backticks
-2. All colors: #RRGGBB hex
-3. Be CREATIVE — use CSS animations, gradients, text-shadow, backdrop-filter
-4. customCss can include @keyframes for floating particles, shimmer effects, etc.
-5. customHtml should be self-contained (inline styles or classes defined in customCss)
-6. envelopeBgColor=dark, envelopePaperColor=light
-7. Only change what user asks, keep rest same`;
+2. All colors #RRGGBB hex
+3. Be CREATIVE with CSS animations, gradients, text effects
+4. envelopeBgColor=DARK, envelopePaperColor=LIGHT always
+5. Photos (PHOTO_N) go in customHtml as decorative img overlays, NEVER as main background
+6. Only change what user asks unless they say "complete redesign"`;
 
-const COMPREHENSIVE_INVITATION_PROMPT = `You are an expert wedding invitation PAGE designer. You can COMPLETELY redesign the entire invitation page from scratch — colors, fonts, layout, animations, custom CSS, custom JavaScript, photo placement, text overlays on images, and dynamic elements.
+const COMPREHENSIVE_INVITATION_PROMPT = `You are an expert wedding invitation PAGE designer. You COMPLETELY redesign the page — colors, fonts, animations, CSS, HTML, photo integration.
 
 ## Page Sections (top to bottom)
-1. **Hero** — Full viewport. Couple names in primaryFont, title, wedding date. Background uses backgroundColor. You can add background images, gradient overlays, parallax effects via customCss.
-2. **Wedding Details** — Circular couple photos, names, date/time columns, venue. Uses accentColor for dividers/ornaments.
-3. **Countdown Timer** — Days/hours/minutes/seconds. Uses accent and text colors.
-4. **Photo Gallery** — Grid of uploaded photos. You can reference photos by index: photo[0], photo[1], etc. AI-generated design elements are also stored as photos.
-5. **RSVP Form** — Name, Accept/Decline, guest count, message. Button uses primaryColor.
-6. **Message Wall** — Floating bottom-left ticker + Send Blessing button.
+1. **Hero** — Full viewport. Couple names, title, date. Background = backgroundColor. Add gradient overlays, parallax via customCss.
+2. **Wedding Details** — Couple photos, names, date/time, venue. Uses accentColor.
+3. **Countdown Timer** — Days/hours/minutes/seconds.
+4. **Photo Gallery** — Grid of uploaded photos. Keep enableGallery=true so photos show in the gallery grid.
+5. **RSVP Form** — Name, Accept/Decline, guests, message.
+6. **Message Wall** — Blessings ticker + Send button.
 7. **Footer** — Couple names.
 
-## Photo References
-Gallery photos are indexed by number. You can use them in customCss as backgrounds:
-- \`.hero-bg { background-image: url(PHOTO_0); }\` → replaced with actual photo URL
-- \`.section-bg { background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(PHOTO_1); }\`
-- Photos can be used as section backgrounds with text overlays
+## Photo References (PHOTO_N)
+Gallery photos indexed by number. Use in customCss/customHtml:
+- Section background: \`section:nth-child(2) { background: linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)), url(PHOTO_0); background-size:cover; }\`
+- Decorative overlay: \`<img src="PHOTO_1" style="position:absolute;top:0;right:0;width:150px;opacity:0.3" />\`
 
-## JSON to return (ALL fields)
+## CRITICAL RULES FOR PHOTOS
+- When user says "add to gallery" → keep enableGallery=true, do NOT put in backgroundImage
+- When user says "use as background" → put in backgroundImage or customCss background
+- When user says "add text overlay on photo" → use customCss to overlay text on a section with photo background
+- NEVER replace the entire page background with a user's photo unless explicitly asked
+- Gallery photos should stay IN the gallery grid section by default
+
+## JSON (return ALL fields)
 {
   "primaryFont": "Font name",
   "backgroundColor": "#hex",
-  "primaryColor": "#hex - buttons, interactive",
-  "accentColor": "#hex - decorative, dividers, gold",
-  "textColor": "#hex - body text",
-  "backgroundImage": "URL or empty or PHOTO_N reference",
+  "primaryColor": "#hex",
+  "accentColor": "#hex",
+  "textColor": "#hex",
+  "backgroundImage": "URL or empty — only set if user explicitly asks for page background image",
   "enableGallery": true,
   "enableRsvp": true,
   "enableCountdown": true,
   "enableMessages": true,
-  "customCss": "COMPREHENSIVE CSS — include @keyframes for animations, section backgrounds using PHOTO_N, text-shadow, gradients, backdrop-filter, transform, transition effects. Make it stunning!",
-  "customHtml": "Extra HTML — floating elements, decorative SVGs, animated borders. Can use PHOTO_N in img src.",
-  "galleryOrder": [0,1,2,3,4,5]
+  "customCss": "CSS with @keyframes, section backgrounds via PHOTO_N, text-shadow, gradients, parallax, transitions",
+  "customHtml": "HTML for floating elements, decorative images, animated borders",
+  "galleryOrder": [0,1,2,3]
 }
 
-## Creative CSS Examples
-- Parallax hero: \`.min-h-dvh { background-attachment: fixed; background-size: cover; }\`
-- Photo as section bg with text overlay: \`section:nth-child(2) { background: linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.6)), url(PHOTO_0); background-size: cover; }\`
-- Animated gradient: \`@keyframes gradient { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }\`
-- Floating particles: inject divs in customHtml with CSS @keyframes float animation
-- Gold shimmer text: \`h1 { background: linear-gradient(to right, #c9a96e, #f5e6d0, #c9a96e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shimmer 3s infinite; }\`
+## CSS Examples
+- Parallax: \`.min-h-dvh { background-attachment:fixed; background-size:cover; }\`
+- Photo section: \`section:nth-child(2) { background: linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.6)), url(PHOTO_0); background-size:cover; }\`
+- Gold shimmer: \`h1 { background: linear-gradient(to right, #c9a96e, #f5e6d0, #c9a96e); -webkit-background-clip:text; -webkit-text-fill-color:transparent; animation:shimmer 3s infinite; }\`
+- Floating: \`@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }\`
 
 ## RULES
 1. Return ONLY valid JSON — no markdown, no backticks
-2. All colors: #RRGGBB hex
-3. Be BOLD and CREATIVE — animations, gradients, parallax, text effects
-4. Use PHOTO_N to reference gallery photos in CSS/HTML — they get replaced with actual URLs
-5. customCss should not break the responsive layout
-6. For theme overhauls: change ALL colors + font + customCss together
-7. customHtml for extra floating/animated elements (keep lightweight)`;
+2. All colors #RRGGBB hex
+3. Be BOLD — animations, gradients, parallax, text effects
+4. Use PHOTO_N for gallery photos in CSS/HTML (auto-replaced with real URLs)
+5. Don't break responsive layout
+6. For complete theme redesigns: change ALL colors + font + customCss together
+7. enableGallery must stay true unless user specifically disables it`;
 
-// Simple mode: only fonts and colors, no custom CSS/HTML/JS
-const SIMPLE_ENVELOPE_PROMPT = `You are a wedding envelope color/font designer. You ONLY change colors and fonts — nothing else.
+const SIMPLE_ENVELOPE_PROMPT = `You are a wedding envelope color/font designer. ONLY change colors and fonts.
 
-## JSON to return
+## JSON
 {
-  "primaryFont": "Font name from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, Montserrat, Raleway, Poppins, Quicksand",
+  "primaryFont": "from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, Montserrat, Raleway, Poppins, Quicksand",
   "primaryColor": "#hex",
   "accentColor": "#hex",
-  "envelopeBgColor": "#hex - dark",
-  "envelopePaperColor": "#hex - light",
-  "envelopeTextColor": "#hex - dark text on paper"
+  "envelopeBgColor": "#hex dark",
+  "envelopePaperColor": "#hex light",
+  "envelopeTextColor": "#hex dark text"
 }
-
 RULES: Return ONLY JSON. Only colors and font. No customCss, no customHtml.`;
 
-const SIMPLE_INVITATION_PROMPT = `You are a wedding invitation color/font designer. You ONLY change colors, fonts, and section toggles — nothing else.
+const SIMPLE_INVITATION_PROMPT = `You are a wedding color/font designer. ONLY change colors, fonts, toggles.
 
-## JSON to return
+## JSON
 {
-  "primaryFont": "Font name from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, Montserrat, Raleway, Poppins, Quicksand",
+  "primaryFont": "from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, Montserrat, Raleway, Poppins, Quicksand",
   "backgroundColor": "#hex",
   "primaryColor": "#hex",
   "accentColor": "#hex",
@@ -118,8 +120,7 @@ const SIMPLE_INVITATION_PROMPT = `You are a wedding invitation color/font design
   "enableCountdown": true,
   "enableMessages": true
 }
-
-RULES: Return ONLY JSON. Only colors, font, and booleans. No customCss, no customHtml, no backgroundImage.`;
+RULES: Return ONLY JSON. Only colors, font, booleans. No customCss, no customHtml, no backgroundImage.`;
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -137,7 +138,6 @@ export async function POST(request: NextRequest) {
 
     const apiKeySetting = await prisma.setting.findUnique({ where: { key: "geminiApiKey" } });
     const modelSetting = await prisma.setting.findUnique({ where: { key: "geminiModel" } });
-
     const apiKey = apiKeySetting?.value;
     const model = modelSetting?.value || "gemini-3.1-flash-lite-preview";
 
@@ -148,7 +148,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Select prompt based on mode + comprehensive toggle
     let systemPrompt: string;
     if (mode === "envelope") {
       systemPrompt = comprehensive ? COMPREHENSIVE_ENVELOPE_PROMPT : SIMPLE_ENVELOPE_PROMPT;
@@ -156,10 +155,11 @@ export async function POST(request: NextRequest) {
       systemPrompt = comprehensive ? COMPREHENSIVE_INVITATION_PROMPT : SIMPLE_INVITATION_PROMPT;
     }
 
-    // Build context
+    // Build context with clear photo instructions
     let context = `\n\nCurrent config:\n${JSON.stringify(currentConfig, null, 2)}`;
     if (galleryPhotos?.length > 0) {
-      context += `\n\nGallery photos (use PHOTO_N to reference):\n${galleryPhotos.map((p: string, i: number) => `PHOTO_${i} = ${p}`).join("\n")}`;
+      context += `\n\nGallery photos available (use PHOTO_N in customCss/customHtml to reference):\n${galleryPhotos.map((p: string, i: number) => `PHOTO_${i} = ${p}`).join("\n")}`;
+      context += `\n\nREMINDER: These photos are already in the gallery grid. Do NOT move them to backgroundImage unless the user explicitly says "use as background". If user says "add to gallery", just keep enableGallery=true.`;
     }
 
     const fullPrompt = systemPrompt + context + "\n\nUser request: " + prompt;
@@ -167,18 +167,41 @@ export async function POST(request: NextRequest) {
     const { GoogleGenAI } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey });
 
-    const response = await ai.models.generateContent({
-      model,
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-    });
+    // Multi-turn refinement: if comprehensive and it's a major redesign, iterate
+    let finalText = "";
+    const isMajorRedesign = comprehensive && /\b(complete|entire|whole|full|redesign|overhaul|chinese|japanese|indian|traditional|theme)\b/i.test(prompt);
 
-    const text = response.text || "";
+    if (isMajorRedesign) {
+      // Step 1: Ask AI to plan the design
+      const planPrompt = `${systemPrompt}\n\nThe user wants a COMPLETE redesign: "${prompt}"\n\nFirst, describe your design plan in 2-3 sentences, then output the JSON config. Think about:\n- Color palette that fits the theme\n- Font that matches the cultural/aesthetic style\n- CSS animations and effects\n- How to use available photos (if any)\n- Decorative HTML elements\n\nThen output the full JSON config.${context}`;
+
+      const planRes = await ai.models.generateContent({
+        model,
+        contents: [{ role: "user", parts: [{ text: planPrompt }] }],
+      });
+      const planText = planRes.text || "";
+
+      // Step 2: Refine the design with self-critique
+      const refinePrompt = `You are reviewing a wedding invitation design. Here is the initial design response:\n\n${planText}\n\nRefine this design to be more cohesive and stunning. Ensure:\n1. Colors work harmoniously together\n2. CSS animations are smooth and elegant\n3. customHtml decorative elements complement the theme\n4. The design fully captures the "${prompt}" aesthetic\n\nReturn the FINAL improved JSON config only. No markdown, no backticks, just the JSON object.`;
+
+      const refineRes = await ai.models.generateContent({
+        model,
+        contents: [{ role: "user", parts: [{ text: refinePrompt }] }],
+      });
+      finalText = refineRes.text || planText;
+    } else {
+      const response = await ai.models.generateContent({
+        model,
+        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+      });
+      finalText = response.text || "";
+    }
 
     let config: Record<string, unknown>;
     let galleryOrder: number[] | undefined;
 
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonMatch = finalText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("No JSON in response");
       config = JSON.parse(jsonMatch[0]);
 
@@ -187,7 +210,7 @@ export async function POST(request: NextRequest) {
         delete config.galleryOrder;
       }
 
-      // Replace PHOTO_N references with actual URLs in customCss and customHtml
+      // Replace PHOTO_N references
       if (galleryPhotos?.length > 0) {
         for (const field of ["customCss", "customHtml", "backgroundImage"]) {
           if (typeof config[field] === "string") {
@@ -229,12 +252,11 @@ export async function POST(request: NextRequest) {
         config.customHtml = currentConfig?.customHtml || "";
       }
 
-      // Remove undefined
       for (const key of Object.keys(config)) {
         if (config[key] === undefined) delete config[key];
       }
 
-      // Sanitize HTML/CSS to prevent XSS
+      // Sanitize
       if (typeof config.customHtml === "string" && config.customHtml) {
         config.customHtml = sanitizeHtml(config.customHtml);
       }
@@ -244,7 +266,7 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json({
         error: "AI returned invalid response. Try rephrasing your request.",
-        rawResponse: text.slice(0, 500),
+        rawResponse: finalText.slice(0, 500),
       }, { status: 422 });
     }
 
@@ -268,11 +290,11 @@ export async function POST(request: NextRequest) {
     if (config.textColor && config.textColor !== cur.textColor) changes.push(`Text → ${config.textColor}`);
     if (config.envelopeBgColor && config.envelopeBgColor !== cur.envelopeBgColor) changes.push(`Envelope bg → ${config.envelopeBgColor}`);
     if (config.customCss && config.customCss !== cur.customCss) changes.push("Custom CSS" + (comprehensive ? " (with animations)" : ""));
-    if (config.customHtml && config.customHtml !== cur.customHtml) changes.push("Custom HTML elements added");
+    if (config.customHtml && config.customHtml !== cur.customHtml) changes.push("Custom HTML elements");
     if (galleryOrder) changes.push("Gallery reordered");
 
     const message = changes.length > 0
-      ? `${comprehensive ? "Comprehensive" : "Style"} changes:\n${changes.map(c => `• ${c}`).join("\n")}\n\nClick "Apply" to preview.`
+      ? `${isMajorRedesign ? "Complete redesign" : comprehensive ? "Comprehensive" : "Style"} changes:\n${changes.map(c => `• ${c}`).join("\n")}\n\nClick "Apply" to preview.`
       : "Design ready. Click \"Apply\" to see changes.";
 
     return NextResponse.json({ config, galleryOrder, message });

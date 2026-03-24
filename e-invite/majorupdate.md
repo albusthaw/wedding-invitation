@@ -1,49 +1,54 @@
-# Major Update - 2026-03-24 (v13)
+# Major Update - 2026-03-24 (v14)
 
 ## Summary
-Fixed couple photo upload error, designer "i.map" crash, removed Media tab (integrated uploads into AI chat), added AI image generation for design elements, removed 6-photo gallery limit.
+Added configurable image generation model setting (`gemini-3.1-flash-image-preview`), fixed photo upload being misused as background, rebuilt AI design system with multi-turn refinement for major redesigns, added 10 preset prompts each for Page AI and Envelope AI, multi-element image generation.
 
 ## Changes
 
-### Bug Fix: Couple Photo Upload Error (#35)
-- **Symptom:** Adding couple photo in Invitation Letter creation triggers Server Component render error.
-- **Root cause:** `savePhoto()` derived file extension from `file.name` which is unreliable for server-action File objects.
-- **Fix:** Extension derived from MIME type first, with filename fallback.
+### Settings: Image Generation Model (#38 update)
+- New `geminiImageModel` setting in Settings page, stored in DB
+- Positioned above API Key field
+- Default: `gemini-3.1-flash-image-preview` (the correct image-capable model)
+- Text design model (`gemini-3.1-flash-lite-preview`) and image generation model are now separate and independently configurable
+- Seed script updated to include default `geminiImageModel`
 
-### Bug Fix: Designer "i.map is not a function" (#36)
-- **Symptom:** Any AI design request fails with "Design failed: i.map is not a function".
-- **Root cause:** `galleryPhotos` from API returned as JSON string `"[]"` instead of array `[]`. The designer page passed this raw to DesignerModal which calls `.map()`.
-- **Fix:** Added JSON parse with fallback in designer page when passing galleryPhotos to modal.
+### Fix: Photo Upload Background Misuse (#38b)
+- **Problem:** Uploading a photo and asking AI "add to gallery" caused AI to set it as entire page `backgroundImage`
+- **Fix:** Rewrote all comprehensive AI prompts with explicit CRITICAL rules:
+  - "add to gallery" → keep `enableGallery=true`, NOT `backgroundImage`
+  - "use as background" → put in `backgroundImage` or `customCss`
+  - Added REMINDER in context when photos exist
+  - Photos default to gallery grid, only moved to background when explicitly requested
 
-### Refactor: Media Tab Removed, Upload in AI Chat (#37)
-- **What:** Removed the separate "Media" tab from the Designer modal.
-- **Why:** Streamlines workflow — users no longer switch tabs to add photos/music.
-- **How:** AIChatPanel now has (+) button for uploading photos and music directly in the chat. Uploaded files appear as chat messages. Gallery photo thumbnails shown at bottom of chat. Both Envelope AI and Page AI tabs support upload.
+### Multi-Turn AI Refinement (#38c)
+- Major redesigns (keywords: complete, redesign, chinese, japanese, indian, theme, etc.) now use 2-step AI process:
+  1. **Plan**: AI describes design approach + generates initial JSON
+  2. **Refine**: AI self-critiques the plan and outputs improved, cohesive final JSON
+- Only triggers in comprehensive mode for major redesign requests
+- Simple color/font changes still use single-turn for speed
 
-### Feature: AI Image Generation (#38)
-- **What:** Generate custom design element images (flowers, borders, ornaments, cultural motifs) using Gemini AI.
-- **New endpoint:** `POST /api/designer/generate-image` — uses `gemini-2.0-flash-exp` model with image output.
-- **Flow:** User types description → clicks 🎨 button → AI generates image → saved to server → user clicks "Add to Gallery" → available as PHOTO_N in design prompts.
-- **Use cases:** Chinese wedding decorations, floral borders, animated element backgrounds, cultural motifs.
-- **Both envelope and page AI** can generate and use these images in their designs.
+### Multi-Element Image Generation (generate-image endpoint rewrite)
+- Text model plans 3-6 design elements from a single prompt
+- Image model generates each element separately
+- All images returned together, user adds all to gallery at once
+- Example: "Chinese wedding decorations" → generates red peonies, gold double-happiness, silk pattern, lantern, etc.
+- Cap: 6 elements max per generation request
 
-### Change: Gallery Photo Limit Removed (#39)
-- 6-photo cap removed. Default maxPhotos now 99.
-- AI-generated design elements need gallery space; old limit was too restrictive.
+### 10 Preset Prompts (#38d)
+- **Envelope AI (comprehensive)**: Chinese wedding, dark moody, vintage lace, royal purple, tropical beach, art deco, rustic barn, winter wonderland, Japanese sakura, Indian mandala
+- **Page AI (comprehensive)**: Chinese wedding, garden party, luxury black/gold, beach tropical, royal Indian, rustic barn, modern minimalist, Japanese sakura, art deco gatsby, winter wonderland
 
 ## Files Changed
-- `src/app/actions/invitation.ts` — MIME-based extension in savePhoto()
-- `src/app/dashboard/designer/page.tsx` — Parse galleryPhotos JSON string
-- `src/components/designer/DesignerModal.tsx` — Removed Media tab, wired new AIChatPanel props
-- `src/components/designer/AIChatPanel.tsx` — Added upload (+), AI image gen (🎨), gallery thumbnails, music support
-- `src/components/designer/MediaUploader.tsx` — Removed 6-photo max (now 99)
-- `src/app/api/designer/generate/route.ts` — Updated prompts, removed photo cap references
-- `src/app/api/designer/generate-image/route.ts` — **New:** AI image generation endpoint
-- `CLAUDE.md` — Bug patterns #35-#39
+- `src/app/dashboard/settings/page.tsx` — Added geminiImageModel field
+- `src/app/api/designer/generate/route.ts` — Rewrote all prompts, added multi-turn refinement, photo handling rules
+- `src/app/api/designer/generate-image/route.ts` — Reads image model from DB, multi-element generation
+- `src/components/designer/AIChatPanel.tsx` — 10 presets each, multi-image display, "Add All to Gallery"
+- `prisma/seed.ts` — Added geminiImageModel default
+- `CLAUDE.md` — Updated #38, added #38b-#38d
 - `majorupdate.md` — This file
 
 ## Testing
-- Build succeeds (no warnings) ✓
+- Build succeeds ✓
 - All 65 unit tests pass ✓
-- All routes registered including new `/api/designer/generate-image` ✓
+- All routes registered ✓
 - Type checking passes ✓

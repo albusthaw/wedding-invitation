@@ -25,6 +25,7 @@ async function main() {
   // Create default settings
   const defaultSettings: Record<string, string> = {
     brandName: "E-Invite",
+    geminiImageModel: "gemini-3.1-flash-image-preview",
     geminiModel: "gemini-3.1-flash-lite-preview",
   };
 

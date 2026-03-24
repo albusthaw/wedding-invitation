@@ -27,7 +27,7 @@ interface ChatMsg {
   content: string;
   config?: Partial<DesignConfig>;
   galleryOrder?: number[];
-  imageUrl?: string;
+  images?: { url: string; description: string }[];
 }
 
 interface AIChatPanelProps {
@@ -51,10 +51,16 @@ const SIMPLE_ENVELOPE = [
 ];
 
 const COMP_ENVELOPE = [
-  "Completely redesign with floating gold particles and shimmer text",
-  "Dark moody envelope with glowing wax seal animation",
-  "Elegant with animated gradient background and decorative borders",
-  "Generate AI flower decorations for the envelope corners",
+  "Complete Chinese wedding envelope — red and gold with lantern decorations",
+  "Elegant dark moody envelope with glowing wax seal and shimmer text",
+  "Vintage lace envelope with ornate floral frame and soft animations",
+  "Royal purple envelope with floating gold particles and gradient glow",
+  "Tropical beach theme with teal gradients and palm leaf decorations",
+  "Art deco envelope with geometric gold borders and animated lines",
+  "Rustic barn theme with warm wood tones and botanical overlays",
+  "Winter wonderland with snowfall animation and icy blue accents",
+  "Japanese sakura theme with cherry blossom petals floating",
+  "Indian Mandala theme with rich jewel tones and intricate patterns",
 ];
 
 const SIMPLE_PAGE = [
@@ -65,12 +71,16 @@ const SIMPLE_PAGE = [
 ];
 
 const COMP_PAGE = [
-  "Completely redesign with parallax hero using photo[0] as background, animated text, floating elements",
-  "Chinese wedding design with red and gold, generate lantern and flower decorations",
-  "Design with photo[0] as hero bg, gradient overlay text, custom countdown style",
-  "Bold dark theme with glow effects, animated gradient sections",
-  "Generate floral border decorations and use them throughout the page",
-  "Add floating petal animations, parallax scrolling, and decorative elements",
+  "Complete Chinese wedding — red and gold theme with lanterns, double happiness, silk patterns",
+  "Elegant garden party — soft greens, floral borders, parallax hero with photo overlay",
+  "Luxury black and gold — dark theme with shimmer text, animated gradient sections, glow effects",
+  "Beach tropical wedding — teal ocean gradients, palm decorations, sunset color palette",
+  "Royal Indian wedding — rich jewel tones, paisley patterns, mandala decorations, gold accents",
+  "Rustic barn wedding — warm earth tones, wood textures, botanical illustrations, soft animations",
+  "Modern minimalist — clean white space, subtle animations, elegant typography, photo-focused",
+  "Japanese sakura theme — cherry blossoms, soft pink gradients, zen minimalism, floating petals",
+  "Art deco gatsby — geometric gold, bold typography, vintage glamour, animated lines",
+  "Winter wonderland — icy blues, snowfall animations, frosted glass effects, silver accents",
 ];
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -94,7 +104,7 @@ export default function AIChatPanel({
   const [error, setError] = useState("");
   const [history, setHistory] = useState<DesignConfig[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatingImages, setGeneratingImages] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +121,7 @@ export default function AIChatPanel({
     }
   }, [input]);
 
+  // Design generation (text/config only)
   async function send(text: string) {
     const t = text.trim();
     if (!t || loading) return;
@@ -133,12 +144,12 @@ export default function AIChatPanel({
     } finally { setLoading(false); }
   }
 
-  // Generate AI design element image
-  const generateAIImage = useCallback(async (prompt: string) => {
-    if (!prompt.trim() || generatingImage) return;
-    setGeneratingImage(true);
+  // AI image generation — generates multiple design elements
+  const generateAIImages = useCallback(async (prompt: string, multi: boolean) => {
+    if (!prompt.trim() || generatingImages) return;
+    setGeneratingImages(true);
     setError("");
-    setMsgs(p => [...p, { id: crypto.randomUUID(), role: "user", content: `🎨 Generate image: ${prompt}` }]);
+    setMsgs(p => [...p, { id: crypto.randomUUID(), role: "user", content: `🎨 ${multi ? "Generate design elements" : "Generate image"}: ${prompt}` }]);
 
     try {
       const res = await fetch("/api/designer/generate-image", {
@@ -147,28 +158,30 @@ export default function AIChatPanel({
         body: JSON.stringify({
           prompt,
           invitationId,
-          context: mode === "envelope"
-            ? "Design element for wedding envelope opener page"
-            : "Design element for wedding invitation page",
+          context: mode === "envelope" ? "Envelope opener page" : "Wedding invitation page",
+          generateMultiple: multi,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Image generation failed");
 
-      setMsgs(p => [...p, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.description || "AI design element generated! Click 'Add to Gallery' to use it.",
-        imageUrl: data.url,
-      }]);
+      const images = data.images || [];
+      if (images.length > 0) {
+        setMsgs(p => [...p, {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: `Generated ${images.length} design element${images.length > 1 ? "s" : ""}. Click "Add All to Gallery" to use them in your design.`,
+          images,
+        }]);
+      }
     } catch (err) {
-      const m = err instanceof Error ? err.message : "Image generation error";
+      const m = err instanceof Error ? err.message : "Error";
       setError(m);
       setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `Error: ${m}` }]);
-    } finally { setGeneratingImage(false); }
-  }, [generatingImage, invitationId, mode]);
+    } finally { setGeneratingImages(false); }
+  }, [generatingImages, invitationId, mode]);
 
-  // Upload photo/music files
+  // File upload
   const handleFileUpload = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
@@ -180,7 +193,7 @@ export default function AIChatPanel({
         const isAudio = AUDIO_TYPES.includes(file.type);
         const isImage = IMAGE_TYPES.includes(file.type);
         if (!isAudio && !isImage) {
-          setError(`Invalid file type: ${file.type}. Use JPG, PNG, WebP for photos or MP3 for music.`);
+          setError(`Invalid file type: ${file.type}. Use JPG, PNG, WebP or MP3.`);
           continue;
         }
 
@@ -203,7 +216,7 @@ export default function AIChatPanel({
             setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `🎵 Music uploaded: ${file.name}` }]);
           } else if (isImage && onAddPhoto) {
             onAddPhoto(url);
-            setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `📷 Photo uploaded: ${file.name}${data.wasOptimized ? " (auto-optimized)" : ""}` }]);
+            setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `📷 Photo added to gallery: ${file.name}${data.wasOptimized ? " (auto-optimized)" : ""}` }]);
           }
         }
       }
@@ -221,8 +234,10 @@ export default function AIChatPanel({
     if (go && onReorderGallery) onReorderGallery(go);
   }
 
-  function addImageToGallery(url: string) {
-    if (onAddPhoto) onAddPhoto(url);
+  function addAllToGallery(images: { url: string }[]) {
+    if (onAddPhoto) {
+      for (const img of images) onAddPhoto(img.url);
+    }
   }
 
   function undo() {
@@ -232,6 +247,7 @@ export default function AIChatPanel({
   }
 
   const label = mode === "envelope" ? "Envelope" : "Page";
+  const busy = loading || generatingImages || uploading;
 
   return (
     <div className="flex flex-col h-full">
@@ -242,15 +258,10 @@ export default function AIChatPanel({
           <span className="text-xs text-white/60 font-medium">{label} AI {comprehensive ? "(Full)" : "(Style)"}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          {/* Photo count */}
           {galleryPhotos && galleryPhotos.length > 0 && (
-            <span className="text-[9px] text-[#c9a96e]/60 bg-[#c9a96e]/10 px-1.5 py-0.5 rounded">
-              {galleryPhotos.length} photo{galleryPhotos.length !== 1 ? "s" : ""}
-            </span>
+            <span className="text-[9px] text-[#c9a96e]/60 bg-[#c9a96e]/10 px-1.5 py-0.5 rounded">{galleryPhotos.length} photos</span>
           )}
-          {musicFile && (
-            <span className="text-[9px] text-purple-400/60 bg-purple-500/10 px-1.5 py-0.5 rounded">♪</span>
-          )}
+          {musicFile && <span className="text-[9px] text-purple-400/60 bg-purple-500/10 px-1.5 py-0.5 rounded">♪</span>}
           {history.length > 0 && (
             <button type="button" onClick={undo} className="px-2 py-1 rounded text-xs text-white/60 hover:text-white bg-white/5 border border-white/10 cursor-pointer">Undo ({history.length})</button>
           )}
@@ -269,16 +280,13 @@ export default function AIChatPanel({
             <h3 className="text-white font-medium text-sm mb-1">{label} Designer</h3>
             <p className="text-white/40 text-xs max-w-[280px] leading-relaxed mb-4">
               {comprehensive
-                ? `Full ${label.toLowerCase()} redesign — animations, CSS/HTML, AI-generated images, photo backgrounds.`
-                : `Quick style changes — colors and fonts only.`}
-              {galleryPhotos && galleryPhotos.length > 0 && comprehensive && (
-                <span className="block mt-1 text-[#c9a96e]/60">{galleryPhotos.length} photo(s). Reference as photo[0]-photo[{galleryPhotos.length - 1}].</span>
-              )}
+                ? `Full ${label.toLowerCase()} redesign — themes, animations, AI-generated images, photo integration.`
+                : `Quick style changes — colors and fonts.`}
             </p>
             <div className="flex flex-wrap gap-1.5 justify-center max-w-[340px]">
-              {prompts.map(p => (
+              {prompts.slice(0, 6).map(p => (
                 <button key={p} type="button" onClick={() => send(p)} className="px-2.5 py-1 rounded-full text-[10px] bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-[#ed5566]/10 hover:border-[#ed5566]/30 transition-all cursor-pointer text-left">
-                  {p.length > 60 ? p.slice(0, 57) + "..." : p}
+                  {p.length > 55 ? p.slice(0, 52) + "..." : p}
                 </button>
               ))}
             </div>
@@ -290,18 +298,25 @@ export default function AIChatPanel({
             <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${m.role === "user" ? "bg-[#ed5566] text-white rounded-tr-sm" : "bg-[#1a1a2e] border border-[#2a2a4a] text-white/90 rounded-tl-sm"}`}>
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
 
-              {/* AI generated image */}
-              {m.imageUrl && (
-                <div className="mt-2">
-                  <img src={m.imageUrl} alt="AI generated" className="rounded-lg max-h-48 w-auto border border-white/10" />
-                  <button type="button" onClick={() => addImageToGallery(m.imageUrl!)} className="mt-1.5 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c9a96e]/20 hover:bg-[#c9a96e]/30 text-[#c9a96e] text-xs font-medium cursor-pointer border border-[#c9a96e]/20">
+              {/* Generated images grid */}
+              {m.images && m.images.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {m.images.map((img, i) => (
+                      <div key={i} className="relative group">
+                        <img src={img.url} alt={img.description} className="rounded-lg w-full aspect-square object-cover border border-white/10" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-[8px] text-white/70 px-1 py-0.5 rounded-b-lg truncate">{img.description}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => addAllToGallery(m.images!)} className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c9a96e]/20 hover:bg-[#c9a96e]/30 text-[#c9a96e] text-xs font-medium cursor-pointer border border-[#c9a96e]/20">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    Add to Gallery
+                    Add All to Gallery ({m.images.length})
                   </button>
                 </div>
               )}
 
-              {/* Design config apply button */}
+              {/* Design config apply */}
               {m.role === "assistant" && (m.config || m.galleryOrder) && (
                 <div className="mt-2.5 pt-2.5 border-t border-white/10">
                   <div className="flex flex-wrap gap-1 mb-2">
@@ -313,7 +328,7 @@ export default function AIChatPanel({
                   </div>
                   <button type="button" onClick={() => apply(m.config || {}, m.galleryOrder)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#ed5566] hover:bg-[#d4444f] text-white text-xs font-medium cursor-pointer">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                    Apply
+                    Apply Design
                   </button>
                 </div>
               )}
@@ -321,7 +336,7 @@ export default function AIChatPanel({
           </div>
         ))}
 
-        {(loading || generatingImage || uploading) && (
+        {busy && (
           <div className="flex justify-start">
             <div className="bg-[#1a1a2e] border border-[#2a2a4a] rounded-2xl rounded-tl-sm px-4 py-3">
               <div className="flex items-center gap-1.5">
@@ -329,7 +344,7 @@ export default function AIChatPanel({
                 <div className="w-2 h-2 rounded-full bg-[#ed5566] animate-bounce" style={{ animationDelay: "150ms" }} />
                 <div className="w-2 h-2 rounded-full bg-[#ed5566] animate-bounce" style={{ animationDelay: "300ms" }} />
                 <span className="text-[10px] text-white/40 ml-1">
-                  {generatingImage ? "Generating image..." : uploading ? "Uploading..." : "Designing..."}
+                  {generatingImages ? "Generating images..." : uploading ? "Uploading..." : "Designing..."}
                 </span>
               </div>
             </div>
@@ -345,7 +360,7 @@ export default function AIChatPanel({
         </div>
       )}
 
-      {msgs.length > 0 && !loading && !generatingImage && (
+      {msgs.length > 0 && !busy && (
         <div className="px-4 py-1 shrink-0">
           <div className="flex gap-1 overflow-x-auto pb-1">
             {prompts.slice(0, 3).map(p => (
@@ -357,13 +372,13 @@ export default function AIChatPanel({
         </div>
       )}
 
-      {/* Gallery thumbnails strip */}
+      {/* Gallery thumbs */}
       {galleryPhotos && galleryPhotos.length > 0 && (
         <div className="px-4 py-1.5 border-t border-[#2a2a4a] shrink-0">
           <div className="flex gap-1.5 overflow-x-auto pb-0.5">
             {galleryPhotos.map((url, i) => (
-              <div key={`thumb-${i}`} className="w-8 h-8 rounded overflow-hidden border border-white/10 shrink-0 relative group">
-                <img src={url} alt={`photo[${i}]`} className="w-full h-full object-cover" />
+              <div key={`t-${i}`} className="w-8 h-8 rounded overflow-hidden border border-white/10 shrink-0 relative group">
+                <img src={url} alt={`[${i}]`} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[8px] text-white font-mono transition-opacity">[{i}]</div>
               </div>
             ))}
@@ -371,51 +386,41 @@ export default function AIChatPanel({
         </div>
       )}
 
-      {/* Input area with attachment + AI image buttons */}
+      {/* Input */}
       <div className="px-4 pb-3 pt-2 border-t border-[#2a2a4a] shrink-0">
         <div className="flex items-end gap-2">
-          {/* Attachment button (upload photo/music) */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+          {/* Upload button */}
+          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
             className="p-2.5 rounded-xl bg-white/5 text-white/50 hover:text-white hover:bg-white/10 border border-white/10 transition-all shrink-0 cursor-pointer disabled:opacity-30"
-            title="Upload photo or music"
-          >
+            title="Upload photo or music">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,audio/mpeg"
-            multiple
-            onChange={e => { if (e.target.files) handleFileUpload(e.target.files); }}
-            className="hidden"
-          />
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,audio/mpeg" multiple
+            onChange={e => { if (e.target.files) handleFileUpload(e.target.files); }} className="hidden" />
 
-          {/* AI Image generation button */}
+          {/* AI Image Gen button */}
           {comprehensive && (
-            <button
-              type="button"
+            <button type="button"
               onClick={() => {
-                const prompt = input.trim();
-                if (prompt) {
-                  generateAIImage(prompt);
-                  setInput("");
-                } else {
-                  generateAIImage("Elegant gold floral decoration for wedding invitation");
-                }
+                const t = input.trim();
+                if (t) { generateAIImages(t, true); setInput(""); }
+                else generateAIImages("Elegant wedding floral decorations, gold accents", true);
               }}
-              disabled={generatingImage}
+              disabled={generatingImages}
               className="p-2.5 rounded-xl bg-[#c9a96e]/10 text-[#c9a96e] hover:bg-[#c9a96e]/20 border border-[#c9a96e]/20 transition-all shrink-0 cursor-pointer disabled:opacity-30"
-              title="Generate AI design element image"
-            >
+              title="Generate AI design element images">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
             </button>
           )}
 
-          <textarea ref={taRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }} placeholder={comprehensive ? `Describe your ${mode} design...` : `Change ${mode} colors/fonts...`} rows={1} disabled={loading || generatingImage} className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 resize-none focus:outline-none focus:border-[#ed5566]/50 transition-all disabled:opacity-50" style={{ maxHeight: 120 }} />
-          <button type="button" onClick={() => send(input)} disabled={!input.trim() || loading || generatingImage} className="p-2.5 rounded-xl bg-[#ed5566] text-white hover:bg-[#d4444f] disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 cursor-pointer">
+          <textarea ref={taRef} value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
+            placeholder={comprehensive ? `Describe your ${mode} design...` : `Change ${mode} colors/fonts...`}
+            rows={1} disabled={busy}
+            className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 resize-none focus:outline-none focus:border-[#ed5566]/50 transition-all disabled:opacity-50"
+            style={{ maxHeight: 120 }} />
+          <button type="button" onClick={() => send(input)} disabled={!input.trim() || busy}
+            className="p-2.5 rounded-xl bg-[#ed5566] text-white hover:bg-[#d4444f] disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 cursor-pointer">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
           </button>
         </div>

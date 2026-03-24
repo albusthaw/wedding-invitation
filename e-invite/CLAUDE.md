@@ -158,7 +158,8 @@ npx prisma studio    # Open Prisma Studio GUI
 | NEXTAUTH_SECRET | JWT signing secret | (generate random) |
 | NEXTAUTH_URL | App base URL | http://localhost:3000 |
 | GEMINI_API_KEY | Google Gemini API key | (empty) |
-| GEMINI_MODEL | Gemini model name | gemini-3.1-flash-lite-preview |
+| GEMINI_MODEL | Gemini text model name | gemini-3.1-flash-lite-preview |
+| GEMINI_IMAGE_MODEL | Gemini image generation model | gemini-3.1-flash-image-preview |
 
 ## Photo Upload & AI Optimization
 - Upload endpoint validates image dimensions (max 2000x2000) and file size (max 2MB)
@@ -475,14 +476,30 @@ Known bugs found and fixed — watch for regressions:
 **How:** The AIChatPanel now has `onAddPhoto` and `onAddMusic` callbacks. A (+) button in the chat input area opens a file picker for photos and music. Uploaded files appear as chat messages.
 
 ### 38. AI Image Generation for Design Elements (Feature)
-**What:** AI can now generate custom design element images (flowers, borders, ornaments, decorations) using the Gemini image generation model.
+**What:** AI generates multiple custom design element images (flowers, borders, ornaments, cultural motifs) using the configurable Gemini image model.
 **How:**
-- New API endpoint: `POST /api/designer/generate-image` — uses `gemini-2.0-flash-exp` model with `responseModalities: ["TEXT", "IMAGE"]`
-- AIChatPanel has a new 🎨 button (visible in comprehensive mode) that generates AI images from the text input
-- Generated images are saved to `public/uploads/photos/ai-{uuid}.{ext}` and can be added to the gallery
-- Once in the gallery, design prompts can reference them as PHOTO_N in CSS/HTML for placement
-**Use cases:** Chinese wedding red flowers, decorative borders, animated elements, cultural motifs, etc.
-**Rule:** Image generation uses `gemini-2.0-flash-exp` (NOT `gemini-3.1-flash-lite-preview` which is text-only). The image model is hardcoded in the endpoint.
+- New API endpoint: `POST /api/designer/generate-image`
+- Image model configured in Settings (`geminiImageModel`). Default: `gemini-3.1-flash-image-preview`
+- Text model (`gemini-3.1-flash-lite-preview`) plans which elements to generate (3-6 per request)
+- Image model generates each element with `responseModalities: ["TEXT", "IMAGE"]`
+- 🎨 button in comprehensive mode generates multiple images at once
+- Generated images saved to `public/uploads/photos/ai-{uuid}.{ext}`, addable to gallery
+- Once in gallery, design prompts reference them as PHOTO_N in CSS/HTML
+**Rule:** Text model (flash-lite) plans elements, image model (flash-image) generates images. Both models are configurable in Settings.
+
+### 38b. Photo Upload Misused as Background (Fixed)
+**Symptom:** Uploading a photo and asking AI to add it to gallery causes AI to set it as the entire page background instead.
+**Fix:** Rewrote comprehensive prompts with explicit rules: "When user says add to gallery → keep enableGallery=true, do NOT put in backgroundImage". Added REMINDER in context when photos exist.
+**Rule:** The AI design prompts must clearly distinguish gallery photos (stay in grid) from background photos (explicitly requested). Gallery photos reference via PHOTO_N in customCss/customHtml for overlays, not backgroundImage.
+
+### 38c. Multi-Turn AI Refinement for Major Redesigns (Feature)
+**What:** When user requests a "complete redesign" or cultural theme (Chinese, Indian, etc.), the AI does a two-step process: plan → refine.
+**How:** Detects keywords like "complete", "redesign", "chinese", "japanese", etc. Step 1: AI plans the design. Step 2: AI self-critiques and refines for cohesion.
+**Rule:** Multi-turn only triggers for comprehensive mode + major redesign keywords.
+
+### 38d. 10 Preset Prompts for Page AI and Envelope AI (Feature)
+**What:** 10 comprehensive preset prompts for each: Page AI and Envelope AI, covering cultural themes, aesthetic styles, and design approaches.
+**Rule:** Presets should cover diverse cultural + aesthetic themes to inspire users.
 
 ### 39. Gallery Photo Limit Removed (Change)
 **What:** Removed the 6-photo maximum limit on gallery photos.
