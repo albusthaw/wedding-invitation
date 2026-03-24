@@ -30,7 +30,7 @@ e-invite/
 │   │   ├── [slug]/            # Public invitation pages (dynamic)
 │   │   ├── api/               # API routes
 │   │   │   ├── auth/          # NextAuth endpoints
-│   │   │   ├── designer/      # AI designer endpoints
+│   │   │   ├── designer/      # AI designer endpoints (generate + generate-image)
 │   │   │   ├── invitations/   # Invitation CRUD
 │   │   │   ├── invitees/      # Invitee CRUD + bulk import
 │   │   │   ├── messages/      # Public messages endpoint
@@ -430,6 +430,38 @@ Known bugs found and fixed — watch for regressions:
 **Root cause:** `createInvitation` stores `galleryPhotos` as `JSON.stringify([...])` — a JSON string. Prisma returns it as a string `"[]"`, not an array `[]`. The `InvitationPage` component checks `Array.isArray()` which returns false for strings.
 **Fix:** Added JSON parse in `[slug]/page.tsx` serialization: parses string values before passing to client component.
 **Rule:** When reading `galleryPhotos` from Prisma, always check if it's a string and parse it. Store as JSON (Prisma handles serialization), but read defensively.
+
+### 35. Couple Photo Upload Error on Invitation Creation (Fixed)
+**Symptom:** Adding a couple photo during Invitation Letter creation triggers "An error occurred in the Server Components render".
+**Root cause:** `savePhoto()` derived file extension from `file.name.split(".").pop()` which is unreliable for server-action File objects. The file name can be "undefined" or malformed.
+**Fix:** Extension now derived from MIME type first (`image/jpeg` → `jpg`, etc.) with filename as fallback.
+**Rule:** Always derive file extensions from MIME type, not filename. Same pattern as the upload API endpoint (bug #29).
+
+### 36. Designer 'i.map is not a function' Error (Fixed)
+**Symptom:** Page AI designer fails with "Design failed: i.map is not a function" for any request.
+**Root cause:** `galleryPhotos` from the API is a JSON string (e.g. `"[]"`) not an array. The designer page passes this string to `DesignerModal` which tries to call `.map()` on it.
+**Fix:** Added JSON parse with fallback in the designer page when passing `galleryPhotos` to the modal.
+**Rule:** Always parse `galleryPhotos` defensively. It may be a JSON string or an array depending on the source.
+
+### 37. Media Tab Removed, Upload Integrated into AI Chat (Refactor)
+**What:** Removed the separate "Media" tab from the Designer. Upload functionality (photos + music) is now integrated directly into the Envelope AI and Page AI chat panels via a (+) button.
+**Why:** Streamlines the workflow — users no longer need to switch tabs to add media.
+**How:** The AIChatPanel now has `onAddPhoto` and `onAddMusic` callbacks. A (+) button in the chat input area opens a file picker for photos and music. Uploaded files appear as chat messages.
+
+### 38. AI Image Generation for Design Elements (Feature)
+**What:** AI can now generate custom design element images (flowers, borders, ornaments, decorations) using the Gemini image generation model.
+**How:**
+- New API endpoint: `POST /api/designer/generate-image` — uses `gemini-2.0-flash-exp` model with `responseModalities: ["TEXT", "IMAGE"]`
+- AIChatPanel has a new 🎨 button (visible in comprehensive mode) that generates AI images from the text input
+- Generated images are saved to `public/uploads/photos/ai-{uuid}.{ext}` and can be added to the gallery
+- Once in the gallery, design prompts can reference them as PHOTO_N in CSS/HTML for placement
+**Use cases:** Chinese wedding red flowers, decorative borders, animated elements, cultural motifs, etc.
+**Rule:** Image generation uses `gemini-2.0-flash-exp` (NOT `gemini-3.1-flash-lite-preview` which is text-only). The image model is hardcoded in the endpoint.
+
+### 39. Gallery Photo Limit Removed (Change)
+**What:** Removed the 6-photo maximum limit on gallery photos.
+**Why:** AI-generated design elements are stored as gallery photos, and users may need many decorative elements. The old limit was too restrictive.
+**Rule:** No hard limit on gallery photo count. The MediaUploader `maxPhotos` default is now 99.
 
 ## Testing
 

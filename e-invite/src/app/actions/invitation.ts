@@ -38,11 +38,19 @@ async function savePhoto(file: File): Promise<string> {
   const uploadDir = join(process.cwd(), "public", "uploads", "photos");
   await mkdir(uploadDir, { recursive: true });
 
-  const ext = file.name.split(".").pop() || "jpg";
+  // Derive extension from MIME type (safe) with filename fallback
+  const mimeToExt: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+  const ext = mimeToExt[file.type] || file.name?.split(".").pop() || "jpg";
   const fileName = `${crypto.randomUUID()}.${ext}`;
   const filePath = join(uploadDir, fileName);
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
   await writeFile(filePath, buffer);
 
   return `/uploads/photos/${fileName}`;

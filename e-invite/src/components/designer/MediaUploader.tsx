@@ -22,7 +22,7 @@ export default function MediaUploader({
   onUpload,
   onDelete,
   invitationId,
-  maxPhotos = 6,
+  maxPhotos = 99,
 }: MediaUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);

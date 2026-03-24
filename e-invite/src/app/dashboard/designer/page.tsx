@@ -252,6 +252,11 @@ export default function DesignerPage() {
         <DesignerModal
           invitation={{
             ...designing,
+            galleryPhotos: Array.isArray(designing.galleryPhotos)
+              ? designing.galleryPhotos
+              : typeof designing.galleryPhotos === "string"
+                ? (() => { try { const p = JSON.parse(designing.galleryPhotos); return Array.isArray(p) ? p : []; } catch { return []; } })()
+                : [],
             designConfig: {
               primaryFont: "Great Vibes",
               backgroundColor: "#0d0505",
