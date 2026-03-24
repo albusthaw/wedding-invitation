@@ -15,6 +15,9 @@ interface DesignConfig {
   accentColor: string;
   textColor: string;
   backgroundImage: string;
+  envelopeBgColor?: string;
+  envelopePaperColor?: string;
+  envelopeTextColor?: string;
   enableGallery: boolean;
   enableRsvp: boolean;
   enableCountdown: boolean;

@@ -1,6 +1,5 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { decrypt } from "@/lib/encryption";
 import { testConnection } from "@/lib/gemini";
 import { NextResponse } from "next/server";
 
@@ -24,14 +23,7 @@ export async function POST(request: Request) {
         message: "No API key configured",
       });
     }
-    try {
-      apiKey = decrypt(setting.value);
-    } catch {
-      return NextResponse.json({
-        success: false,
-        message: "Failed to decrypt stored API key",
-      });
-    }
+    apiKey = setting.value;
   }
 
   const result = await testConnection(apiKey, model);

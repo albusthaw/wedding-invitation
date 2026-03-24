@@ -10,6 +10,9 @@ interface DesignConfig {
   accentColor: string;
   textColor: string;
   backgroundImage: string;
+  envelopeBgColor?: string;
+  envelopePaperColor?: string;
+  envelopeTextColor?: string;
   enableGallery: boolean;
   enableRsvp: boolean;
   enableCountdown: boolean;
@@ -282,6 +285,12 @@ export default function AIChatPanel({
                       {message.config?.primaryFont && (
                         <div className="px-2 py-1 rounded bg-white/5 text-[10px] text-white/50">
                           Font: {message.config.primaryFont}
+                        </div>
+                      )}
+                      {message.config?.envelopeBgColor && (
+                        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 text-[10px] text-white/50">
+                          <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: message.config.envelopeBgColor }} />
+                          Envelope
                         </div>
                       )}
                       {message.galleryOrder && (

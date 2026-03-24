@@ -9,6 +9,10 @@ interface EnvelopeOpenerProps {
   inviteeName?: string;
   onOpen: () => void;
   fontFamily?: string;
+  bgColor?: string;
+  paperColor?: string;
+  textColor?: string;
+  primaryColor?: string;
 }
 
 export default function EnvelopeOpener({
@@ -17,8 +21,20 @@ export default function EnvelopeOpener({
   inviteeName,
   onOpen,
   fontFamily = "Great Vibes",
+  bgColor,
+  paperColor,
+  textColor,
+  primaryColor,
 }: EnvelopeOpenerProps) {
   const [isOpening, setIsOpening] = useState(false);
+  const envBg = bgColor || "#1a0a0a";
+  const envBgDarker = bgColor ? bgColor.replace(/^#/, "") : "0d0505";
+  const envPaper = paperColor || "#fef5e7";
+  const envPaperEnd = paperColor || "#f5e6d0";
+  const envText = textColor || "#3a2a1a";
+  const envTextLight = textColor || "#5a4a3a";
+  const envPrimary = primaryColor || "#ed5566";
+  const envAccent = "#c9a96e"; // accent always gold on envelope
 
   const handleOpen = () => {
     setIsOpening(true);
@@ -31,8 +47,7 @@ export default function EnvelopeOpener({
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{
-            background:
-              "radial-gradient(ellipse at center, #1a0a0a 0%, #0d0505 100%)",
+            background: `radial-gradient(ellipse at center, ${envBg} 0%, #${envBgDarker} 100%)`,
           }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.8 }}
@@ -69,13 +84,14 @@ export default function EnvelopeOpener({
             transition={{ duration: 1, ease: "easeOut" }}
           >
             {/* Envelope body */}
-            <div className="relative bg-gradient-to-br from-[#fef5e7] to-[#f5e6d0] rounded-lg shadow-2xl overflow-hidden">
+            <div className="relative rounded-lg shadow-2xl overflow-hidden" style={{ background: `linear-gradient(135deg, ${envPaper}, ${envPaperEnd})` }}>
               {/* Gold border */}
-              <div className="absolute inset-0 border-2 border-[#c9a96e]/40 rounded-lg pointer-events-none" />
+              <div className="absolute inset-0 border-2 rounded-lg pointer-events-none" style={{ borderColor: `${envAccent}66` }} />
 
               {/* Stamp decoration */}
               <motion.div
-                className="absolute top-4 right-4 w-14 h-14 border-2 border-[#c9a96e]/60 rounded flex items-center justify-center"
+                className="absolute top-4 right-4 w-14 h-14 border-2 rounded flex items-center justify-center"
+                style={{ borderColor: `${envAccent}99` }}
                 initial={{ rotate: -5 }}
                 animate={{ rotate: 5 }}
                 transition={{
@@ -84,7 +100,7 @@ export default function EnvelopeOpener({
                   repeatType: "reverse",
                 }}
               >
-                <span className="text-[#c9a96e] text-xs font-semibold tracking-wider">
+                <span className="text-xs font-semibold tracking-wider" style={{ color: envAccent }}>
                   LOVE
                 </span>
               </motion.div>
@@ -99,7 +115,8 @@ export default function EnvelopeOpener({
               <div className="pt-24 pb-10 px-8 text-center">
                 {/* Decorative line */}
                 <motion.div
-                  className="w-16 h-[1px] bg-[#c9a96e] mx-auto mb-6"
+                  className="w-16 h-[1px] mx-auto mb-6"
+                  style={{ backgroundColor: envAccent }}
                   initial={{ width: 0 }}
                   animate={{ width: 64 }}
                   transition={{ delay: 0.5, duration: 0.8 }}
@@ -107,7 +124,7 @@ export default function EnvelopeOpener({
 
                 {inviteeName ? (
                   <motion.p
-                    className="text-[#5a4a3a] text-sm tracking-widest uppercase mb-2"
+                    className="text-sm tracking-widest uppercase mb-2" style={{ color: envTextLight }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.6 }}
@@ -116,7 +133,7 @@ export default function EnvelopeOpener({
                   </motion.p>
                 ) : (
                   <motion.p
-                    className="text-[#5a4a3a] text-sm tracking-widest uppercase mb-2"
+                    className="text-sm tracking-widest uppercase mb-2" style={{ color: envTextLight }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.6 }}
@@ -127,8 +144,8 @@ export default function EnvelopeOpener({
 
                 {inviteeName && (
                   <motion.h2
-                    className="text-[#3a2a1a] text-2xl mb-4"
-                    style={{ fontFamily }}
+                    className="text-2xl mb-4"
+                    style={{ color: envText, fontFamily }}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7 }}
@@ -144,27 +161,28 @@ export default function EnvelopeOpener({
                   transition={{ delay: 0.8 }}
                 >
                   <h1
-                    className="text-[#3a2a1a] text-4xl leading-tight mb-2"
-                    style={{ fontFamily }}
+                    className="text-4xl leading-tight mb-2"
+                    style={{ color: envText, fontFamily }}
                   >
                     {groomName}
                   </h1>
                   <p
-                    className="text-[#c9a96e] text-2xl my-1"
-                    style={{ fontFamily }}
+                    className="text-2xl my-1"
+                    style={{ color: envAccent, fontFamily }}
                   >
                     &amp;
                   </p>
                   <h1
-                    className="text-[#3a2a1a] text-4xl leading-tight"
-                    style={{ fontFamily }}
+                    className="text-4xl leading-tight"
+                    style={{ color: envText, fontFamily }}
                   >
                     {brideName}
                   </h1>
                 </motion.div>
 
                 <motion.p
-                  className="text-[#5a4a3a] text-xs tracking-widest uppercase mt-4"
+                  className="text-xs tracking-widest uppercase mt-4"
+                  style={{ color: envTextLight }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 1 }}
@@ -174,7 +192,8 @@ export default function EnvelopeOpener({
 
                 {/* Decorative line */}
                 <motion.div
-                  className="w-16 h-[1px] bg-[#c9a96e] mx-auto mt-6"
+                  className="w-16 h-[1px] mx-auto mt-6"
+                  style={{ backgroundColor: envAccent }}
                   initial={{ width: 0 }}
                   animate={{ width: 64 }}
                   transition={{ delay: 1.1, duration: 0.8 }}
@@ -183,7 +202,8 @@ export default function EnvelopeOpener({
                 {/* Open button */}
                 <motion.button
                   onClick={handleOpen}
-                  className="mt-8 px-8 py-3 bg-[#ed5566] text-white rounded-full text-sm tracking-widest uppercase cursor-pointer hover:bg-[#d94455] transition-colors shadow-lg"
+                  className="mt-8 px-8 py-3 text-white rounded-full text-sm tracking-widest uppercase cursor-pointer transition-colors shadow-lg"
+                  style={{ backgroundColor: envPrimary }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.3 }}
@@ -196,7 +216,8 @@ export default function EnvelopeOpener({
 
               {/* Bottom wax seal decoration */}
               <motion.div
-                className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-[#ed5566] flex items-center justify-center shadow-lg"
+                className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full flex items-center justify-center shadow-lg"
+                style={{ backgroundColor: envPrimary }}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 1.5, type: "spring" }}
@@ -224,10 +245,10 @@ export default function EnvelopeOpener({
             }}
             transition={{ duration: 1, ease: "easeInOut" }}
           >
-            <div className="bg-gradient-to-br from-[#fef5e7] to-[#f5e6d0] rounded-lg p-12 text-center">
+            <div className="rounded-lg p-12 text-center" style={{ background: `linear-gradient(135deg, ${envPaper}, ${envPaperEnd})` }}>
               <h1
-                className="text-[#3a2a1a] text-3xl"
-                style={{ fontFamily }}
+                className="text-3xl"
+                style={{ color: envText, fontFamily }}
               >
                 {groomName} & {brideName}
               </h1>

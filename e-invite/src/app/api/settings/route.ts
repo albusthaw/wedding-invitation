@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { encrypt } from "@/lib/encryption";
 
 export async function GET() {
   const session = await auth();
@@ -32,11 +31,10 @@ export async function POST(request: Request) {
   const body = await request.json();
 
   for (const [key, value] of Object.entries(body)) {
-    let storeValue = value as string;
+    const storeValue = value as string;
 
-    if (key === "geminiApiKey" && storeValue && storeValue !== "***configured***") {
-      storeValue = encrypt(storeValue);
-    } else if (key === "geminiApiKey" && storeValue === "***configured***") {
+    // Skip if the masked placeholder is sent back (don't overwrite the real key)
+    if (key === "geminiApiKey" && storeValue === "***configured***") {
       continue;
     }
 

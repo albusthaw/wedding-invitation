@@ -10,7 +10,7 @@ E-Invite is a full-stack wedding invitation management system built with Next.js
 - **Animations**: Framer Motion 12.x
 - **Database**: MySQL via Prisma ORM 7.x
 - **Auth**: NextAuth.js v5 (Auth.js) with JWT strategy
-- **AI**: Google Gemini API (`@google/genai`) - default model: `gemini-3.1-flash-lite-preview`
+- **AI**: Google Gemini API (`@google/genai`) - default model: `gemini-2.0-flash`
 - **Image Processing**: Sharp 0.34.x
 - **Audio**: Native HTML5 Audio API
 - **Runtime**: Node.js 24.x LTS
@@ -158,7 +158,7 @@ npx prisma studio    # Open Prisma Studio GUI
 | NEXTAUTH_SECRET | JWT signing secret | (generate random) |
 | NEXTAUTH_URL | App base URL | http://localhost:3000 |
 | GEMINI_API_KEY | Google Gemini API key | (empty) |
-| GEMINI_MODEL | Gemini model name | gemini-3.1-flash-lite-preview |
+| GEMINI_MODEL | Gemini model name | gemini-2.0-flash |
 
 ## Photo Upload & AI Optimization
 - Upload endpoint validates image dimensions (max 2000x2000) and file size (max 2MB)
@@ -346,6 +346,28 @@ Known bugs found and fixed — watch for regressions:
 **What:** RSVP and Send Blessing can only be submitted once per IP address per invitation letter.
 **How:** New `RsvpSubmission` model with `@@unique([ip, invitationId])`. New `senderIp` field on `Message`. Both `/api/rsvp` and `/api/messages` POST handlers check for existing submissions and return 429 if duplicate.
 **Rule:** IP limiting is per-invitation-letter, not global. Different invitation letters get independent limits. The `x-forwarded-for` header is used for IP detection (works behind Nginx/Cloudflare).
+
+### 18. Gemini API Key Stored Encrypted But Read Without Decrypting (Fixed)
+**Symptom:** AI Designer buttons (suggested prompts, send) do nothing. No design changes generated.
+**Root cause:** Settings API encrypted the Gemini API key using AES `encrypt()` before storing to DB. But `/api/designer/generate` read the value back without calling `decrypt()`, sending encrypted gibberish to Google Gemini API.
+**Fix:** Removed encryption from API key storage. The key is now stored in plain text in the database (it's server-side only, never exposed to clients; the GET endpoint masks it as `***configured***`).
+**Rule:** NEVER encrypt the Gemini API key before storing. It must be stored in plain text so `/api/designer/generate` can use it directly. The `encrypt()/decrypt()` functions are only for invitee special codes, not for config values.
+
+### 19. Clipboard Copy Fails Silently (Fixed)
+**Symptom:** "Copy Link" buttons on Invitations and Invitees pages don't copy to clipboard.
+**Root cause:** `navigator.clipboard.writeText()` fails silently in non-HTTPS contexts, when document isn't focused, or in some browser security policies.
+**Fix:** Added try-catch with `document.execCommand("copy")` fallback using a temporary hidden textarea.
+**Rule:** Always use a clipboard fallback. Never rely on `navigator.clipboard` alone.
+
+### 20. Envelope Page Not Configurable via AI (Fixed)
+**Symptom:** AI could only change main page colors/fonts, not the envelope opener screen.
+**Fix:** Added `envelopeBgColor`, `envelopePaperColor`, `envelopeTextColor` to the design config. EnvelopeOpener component now reads these from config with sensible defaults. AI system prompt documents both screens.
+**Rule:** The envelope uses `envelopeBgColor` (dark background), `envelopePaperColor` (light paper), `envelopeTextColor` (dark text on paper). These are optional fields with fallback defaults.
+
+### 21. Default Gemini Model Name Invalid (Fixed)
+**Symptom:** AI generation fails even with correct API key because model `gemini-3.1-flash-lite-preview` doesn't exist.
+**Fix:** Changed default model to `gemini-2.0-flash` everywhere (seed, settings page, .env.example, CLAUDE.md).
+**Rule:** Default Gemini model is `gemini-2.0-flash`. Users can change it in Settings.
 
 ## Testing
 

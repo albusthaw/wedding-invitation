@@ -50,8 +50,12 @@ export default function InvitationPage({
 
   const config = invitation.designConfig || {};
   const primaryFont = (config.primaryFont as string) || "Great Vibes";
+  const primaryColor = (config.primaryColor as string) || "#ed5566";
   const bgImage = (config.backgroundImage as string) || "";
   const bgColor = (config.backgroundColor as string) || "#0d0505";
+  const envelopeBgColor = (config.envelopeBgColor as string) || undefined;
+  const envelopePaperColor = (config.envelopePaperColor as string) || undefined;
+  const envelopeTextColor = (config.envelopeTextColor as string) || undefined;
 
   return (
     <div
@@ -83,6 +87,10 @@ export default function InvitationPage({
             inviteeName={inviteeName}
             onOpen={() => setIsOpen(true)}
             fontFamily={primaryFont}
+            bgColor={envelopeBgColor}
+            paperColor={envelopePaperColor}
+            textColor={envelopeTextColor}
+            primaryColor={primaryColor}
           />
         )}
       </AnimatePresence>
