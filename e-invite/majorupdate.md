@@ -1,57 +1,42 @@
-# Major Update - 2026-03-24 (v11)
+# Major Update - 2026-03-24 (v12)
 
 ## Summary
-Media tab page load error fix, comprehensive security review with critical XSS and access control fixes, DOMPurify HTML sanitization.
+Fixed Server Component render error on Invitation Letter creation caused by nested HTML layout and isomorphic-dompurify JSDOM/Turbopack SSR incompatibility. Replaced isomorphic-dompurify with sanitize-html. Fixed galleryPhotos JSON string parsing bug.
 
 ## Changes
 
-### Media Tab Page Load Error Fix (#1 — Persistent Bug)
-- **Root cause:** `handleDrop` useCallback had a stale closure — it called `uploadFiles` but only listed `[isImage]` in its dependency array. When React re-rendered the component, `handleDrop` held a reference to the original `uploadFiles` which captured stale props/state, causing runtime errors.
-- **Fix:** Complete MediaUploader rewrite:
-  - `uploadFiles` moved to `useCallback` with full dependency array
-  - Stable refs (`currentFilesRef`, `onUploadRef`) used for callback props to prevent infinite re-render loops
-  - `handleDrop` dependency array now includes `[isImage, uploadFiles]`
-  - Inline validation inside `uploadFiles` to avoid closure over `validateFile`
-  - Stable React keys using `img-${index}-${url.slice(-10)}`
+### Server Component Render Error Fix (#32 — Post-Security-Hardening Bug)
+- **Symptom:** "An error occurred in the Server Components render" when creating/viewing invitation letters after v11 security hardening.
+- **Root causes identified:**
+  1. `src/app/[slug]/layout.tsx` had nested `<html>` and `<body>` tags conflicting with root layout — causes React SSR hydration failures
+  2. `isomorphic-dompurify` (added in v11) depends on JSDOM which is incompatible with Turbopack's SSR bundling — causes silent module loading failures during Server Component rendering
+- **Fix:**
+  - Removed nested `<html>/<body>` from `[slug]/layout.tsx` — now returns `<>{children}</>`
+  - Replaced `isomorphic-dompurify` with `sanitize-html` (pure JS, no DOM dependency)
+  - Updated `src/lib/sanitize.ts` to use `sanitize-html` API with equivalent security rules
+  - Added try-catch to `[slug]/page.tsx` Server Component (`getInvitationBySlug`, `generateMetadata`)
 
-### Security Review Findings & Fixes
-
-#### CRITICAL: Stored XSS via customHtml/customCss (#22)
-- **Issue:** `customHtml` rendered via `dangerouslySetInnerHTML` with no sanitization. AI prompt injection or direct PUT API could inject `<script>` tags served to all public visitors.
-- **Fix:** Added `isomorphic-dompurify` package. Created `src/lib/sanitize.ts` with:
-  - `sanitizeHtml()` — DOMPurify with allowed tags (div, span, SVG, etc.), strips scripts/iframes/forms/event handlers
-  - `sanitizeCss()` — strips `expression()`, `javascript:`, `-moz-binding`, `behavior:` patterns
-- Applied in: `/api/designer/generate` (after AI response parse) and `/api/invitations/[id]` PUT handler
-
-#### CRITICAL: Hardcoded Fallback Encryption Key (#23)
-- **Issue:** `encryption.ts` had `process.env.NEXTAUTH_SECRET || "fallback-secret-key"` — if env var missing, uses a publicly known key. Attackers could decrypt all invitee special links.
-- **Fix:** Now throws error if NEXTAUTH_SECRET is not set: `if (!secret) throw new Error("NEXTAUTH_SECRET required")`
-
-#### CRITICAL: Broken Access Control on Invitation CRUD (#24)
-- **Issue:** `PUT /api/invitations/[id]` and `DELETE /api/invitations/[id]` only checked authentication, not authorization. Any CLIENT could modify or delete any invitation.
-- **Fix:** PUT and DELETE now require ADMIN role. GET checks ADMIN or UserInvitation assignment.
-
-#### HIGH: Settings Endpoint Lacked Role Check (#25)
-- **Issue:** `GET /api/settings` was accessible to any authenticated user. Server actions `getSetting()` and `getSettings()` had no auth check and could leak the Gemini API key.
-- **Fix:** GET endpoint requires ADMIN. Server actions require ADMIN and mask geminiApiKey as `***configured***`.
+### Gallery Photos Not Showing Fix (#34)
+- **Symptom:** Photo gallery never displayed on public invitation pages even when photos exist.
+- **Root cause:** `galleryPhotos` stored as `JSON.stringify([...])` (a string), but `InvitationPage` checks `Array.isArray()` which returns false for strings.
+- **Fix:** Added JSON parse in `[slug]/page.tsx` serialization — parses string values before passing to client component.
 
 ## Files Changed
-- `src/components/designer/MediaUploader.tsx` — Complete rewrite fixing stale closure bug
-- `src/lib/sanitize.ts` — New: DOMPurify HTML/CSS sanitization utilities
-- `src/app/api/designer/generate/route.ts` — Sanitize AI-generated customHtml/customCss
-- `src/app/api/invitations/[id]/route.ts` — Admin-only PUT/DELETE, assignment-based GET, sanitize HTML/CSS
-- `src/app/api/settings/route.ts` — Admin-only GET
-- `src/app/actions/settings.ts` — Admin-only getSetting/getSettings, mask API key
-- `src/lib/encryption.ts` — Remove fallback key, throw on missing NEXTAUTH_SECRET
-- `CLAUDE.md` — Bug patterns #22-#26
+- `src/app/[slug]/layout.tsx` — Removed nested `<html>/<body>` tags
+- `src/app/[slug]/page.tsx` — Added error handling, fixed galleryPhotos serialization
+- `src/lib/sanitize.ts` — Replaced isomorphic-dompurify with sanitize-html
+- `package.json` — Swapped isomorphic-dompurify → sanitize-html + @types/sanitize-html
+- `CLAUDE.md` — Bug patterns #32, #33, #34; updated #22 note
 - `majorupdate.md` — This file
-- `package.json` — Added isomorphic-dompurify dependency
 
 ## Testing
-- Build succeeds ✓
+- Build succeeds (no warnings) ✓
+- All 65 unit tests pass ✓
 - All routes registered ✓
 - Type checking passes ✓
-- Security review completed with all CRITICAL and HIGH findings addressed ✓
+- Public invitation page renders with single `<html>` tag (no nesting) ✓
+- HTML sanitization works correctly with sanitize-html ✓
 
-## New Dependency
-- `isomorphic-dompurify` — Server-side compatible DOMPurify for HTML sanitization
+## Dependency Change
+- **Removed:** `isomorphic-dompurify` (required JSDOM, caused Turbopack SSR issues)
+- **Added:** `sanitize-html` + `@types/sanitize-html` (pure JS, no DOM dependency)

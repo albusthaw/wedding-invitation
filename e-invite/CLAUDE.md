@@ -369,8 +369,9 @@ Known bugs found and fixed — watch for regressions:
 
 ### 22. Stored XSS via customHtml/customCss (Fixed)
 **Symptom:** Malicious JavaScript could be injected via customHtml and rendered on public invitation pages.
-**Fix:** Added `isomorphic-dompurify` sanitization. All customHtml is sanitized with DOMPurify (strips `<script>`, event handlers, iframe, etc.). All customCss is stripped of `expression()`, `javascript:`, `-moz-binding`, `behavior:`.
+**Fix:** Added `sanitize-html` sanitization. All customHtml is sanitized (strips `<script>`, event handlers, iframe, etc.). All customCss is stripped of `expression()`, `javascript:`, `-moz-binding`, `behavior:`.
 **Rule:** ALWAYS sanitize customHtml with `sanitizeHtml()` and customCss with `sanitizeCss()` from `@/lib/sanitize` before storing. Applied in `/api/designer/generate` and `/api/invitations/[id]` PUT handler.
+**Note:** Originally used `isomorphic-dompurify` (requires JSDOM), but this caused Server Component render errors due to JSDOM/Turbopack SSR incompatibility. Replaced with `sanitize-html` (pure JS, no DOM dependency). Do NOT re-add `isomorphic-dompurify`.
 
 ### 23. Hardcoded Fallback Encryption Key Removed (Fixed)
 **Symptom:** If NEXTAUTH_SECRET missing, encryption used publicly known fallback key.
@@ -411,6 +412,24 @@ Known bugs found and fixed — watch for regressions:
 **Root cause:** `handleDrop` useCallback had stale closure — referenced `uploadFiles` but only had `[isImage]` in deps. On re-render, the stale closure caused runtime errors.
 **Fix:** Rewrote MediaUploader with proper useCallback dependencies, ref-based prop access for stability, and stable key generation.
 **Rule:** All useCallback hooks in MediaUploader must include their closure dependencies. Use refs for callback props to avoid infinite re-render loops.
+
+### 32. Nested `<html>` in `[slug]/layout.tsx` Causes Server Component Render Error (Fixed)
+**Symptom:** "An error occurred in the Server Components render" when viewing public invitation pages. The error is generic in production builds.
+**Root cause:** `src/app/[slug]/layout.tsx` wrapped children in `<html lang="en"><body>`, but the root `app/layout.tsx` already provides these tags. Nested `<html>/<body>` is invalid HTML and causes React SSR hydration failures.
+**Fix:** Removed `<html>` and `<body>` from `[slug]/layout.tsx`. Now returns `<>{children}</>`.
+**Rule:** ONLY the root `app/layout.tsx` may contain `<html>` and `<body>` tags. Nested layouts must NOT include these. The `[slug]/layout.tsx` must be a pass-through.
+
+### 33. `isomorphic-dompurify` JSDOM Incompatible with Turbopack SSR (Fixed)
+**Symptom:** Server Component render errors in production; "An error occurred in the Server Components render" on pages that trigger API routes importing `sanitize.ts`.
+**Root cause:** `isomorphic-dompurify` depends on JSDOM to create a virtual DOM on the server. JSDOM's heavy native module initialization is incompatible with Turbopack's server-side bundling, causing silent failures during SSR module loading.
+**Fix:** Replaced `isomorphic-dompurify` with `sanitize-html` (pure JavaScript, no DOM dependency). Updated `src/lib/sanitize.ts` to use `sanitize-html` API.
+**Rule:** Do NOT use `isomorphic-dompurify` or any package requiring JSDOM for server-side sanitization. Use `sanitize-html` instead.
+
+### 34. `galleryPhotos` JSON String Not Parsed in Public Page (Fixed)
+**Symptom:** Photo gallery never shows on public invitation pages even when gallery photos exist.
+**Root cause:** `createInvitation` stores `galleryPhotos` as `JSON.stringify([...])` — a JSON string. Prisma returns it as a string `"[]"`, not an array `[]`. The `InvitationPage` component checks `Array.isArray()` which returns false for strings.
+**Fix:** Added JSON parse in `[slug]/page.tsx` serialization: parses string values before passing to client component.
+**Rule:** When reading `galleryPhotos` from Prisma, always check if it's a string and parse it. Store as JSON (Prisma handles serialization), but read defensively.
 
 ## Testing
 
