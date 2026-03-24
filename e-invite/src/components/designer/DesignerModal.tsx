@@ -24,6 +24,7 @@ interface DesignConfig {
   enableMessages: boolean;
   sectionOrder?: string[];
   customCss: string;
+  customHtml?: string;
 }
 
 interface InvitationForDesigner {
@@ -143,6 +144,7 @@ export default function DesignerModal({
   const [galleryPhotos, setGalleryPhotos] = useState<string[]>(invitation.galleryPhotos || []);
   const [musicFile, setMusicFile] = useState<string | null>(invitation.musicFile);
   const [activeTab, setActiveTab] = useState<TabId>("envelope-ai");
+  const [comprehensive, setComprehensive] = useState(true);
   const [mobileView, setMobileView] = useState<"controls" | "preview">("controls");
   const [showPreviewPopup, setShowPreviewPopup] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -205,16 +207,26 @@ export default function DesignerModal({
     []
   );
 
+  const [saveMsg, setSaveMsg] = useState("");
+
   async function handleSave() {
     setIsSaving(true);
     setSaveSuccess(false);
+    setSaveMsg("");
     try {
       await onSave(config, galleryPhotos, musicFile);
-      setSaveSuccess(true);
-      // Update the initial state reference so isDirty resets
       initialStateRef.current = JSON.stringify({ config, galleryPhotos, musicFile });
       setIsDirty(false);
-      setTimeout(() => setSaveSuccess(false), 2000);
+
+      // Auto-publish if already published
+      if (invitation.published) {
+        await onPublish();
+        setSaveMsg("Saved & Published");
+      } else {
+        setSaveMsg("Saved as Draft");
+      }
+      setSaveSuccess(true);
+      setTimeout(() => { setSaveSuccess(false); setSaveMsg(""); }, 3000);
     } finally {
       setIsSaving(false);
     }
@@ -287,6 +299,7 @@ export default function DesignerModal({
         currentConfig={config}
         onApplyConfig={handleAIApplyConfig}
         invitationId={invitation.id}
+        comprehensive={comprehensive}
       />
     );
   }
@@ -300,6 +313,7 @@ export default function DesignerModal({
         onReorderGallery={handleGalleryReorder}
         invitationId={invitation.id}
         galleryPhotos={galleryPhotos}
+        comprehensive={comprehensive}
       />
     );
   }
@@ -438,15 +452,19 @@ export default function DesignerModal({
       <div className="p-4 space-y-6 overflow-y-auto h-full custom-scrollbar">
         {/* Gallery photos */}
         <div>
-          <h4 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-3">
-            Gallery Photos
+          <h4 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-2">
+            Gallery Photos <span className="text-white/20">({galleryPhotos.length}/6)</span>
           </h4>
+          <p className="text-[10px] text-white/30 mb-3">
+            Photos are labeled photo[0]-photo[5]. Reference them in Page AI for section backgrounds and overlays.
+          </p>
           <MediaUploader
             type="gallery"
             currentFiles={galleryPhotos}
             onUpload={handleGalleryUpload}
             onDelete={handleGalleryDelete}
             invitationId={invitation.id}
+            maxPhotos={6}
           />
         </div>
 
@@ -596,9 +614,31 @@ export default function DesignerModal({
 
           {/* Right: actions */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Comprehensive toggle */}
+            <div className="hidden sm:flex items-center gap-1.5 mr-1">
+              <span className="text-[10px] text-white/40">{comprehensive ? "Full" : "Style"}</span>
+              <button
+                type="button"
+                onClick={() => setComprehensive(!comprehensive)}
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${comprehensive ? "bg-[#ed5566]" : "bg-white/10"}`}
+                title={comprehensive ? "Comprehensive design mode (CSS, HTML, animations)" : "Style-only mode (colors, fonts)"}
+              >
+                <motion.div className="absolute top-[2px] w-4 h-4 rounded-full bg-white shadow-sm" animate={{ left: comprehensive ? 18 : 2 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
+              </button>
+            </div>
+
+            {/* Save message toast */}
+            <AnimatePresence>
+              {saveMsg && (
+                <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="hidden md:inline text-[11px] text-emerald-400/80 mr-1">
+                  {saveMsg}
+                </motion.span>
+              )}
+            </AnimatePresence>
+
             {/* Unsaved indicator (text) */}
             <AnimatePresence>
-              {isDirty && (
+              {isDirty && !saveMsg && (
                 <motion.span
                   initial={{ opacity: 0, x: 10 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -644,14 +684,14 @@ export default function DesignerModal({
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Saved!
+                  {saveMsg || "Saved!"}
                 </>
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                   </svg>
-                  Save
+                  {invitation.published ? "Save & Publish" : "Save Draft"}
                 </>
               )}
             </button>

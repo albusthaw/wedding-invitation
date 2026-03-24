@@ -8,6 +8,7 @@ interface MediaUploaderProps {
   onUpload: (urls: string[]) => void;
   onDelete: (url: string) => void;
   invitationId: string;
+  maxPhotos?: number;
 }
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -21,6 +22,7 @@ export default function MediaUploader({
   onUpload,
   onDelete,
   invitationId,
+  maxPhotos = 6,
 }: MediaUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -47,6 +49,13 @@ export default function MediaUploader({
 
   async function uploadFiles(files: File[]) {
     setError("");
+
+    // Enforce max photos limit
+    if (isImage && currentFiles.length + files.length > maxPhotos) {
+      setError(`Maximum ${maxPhotos} photos allowed. You have ${currentFiles.length}, trying to add ${files.length}.`);
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(0);
 
@@ -158,6 +167,10 @@ export default function MediaUploader({
                 key={url + index}
                 className="relative group aspect-square rounded-lg overflow-hidden border border-white/10"
               >
+                {/* Photo index label for AI reference */}
+                <div className="absolute top-1 left-1 z-10 bg-black/70 text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
+                  photo[{index}]
+                </div>
                 <img
                   src={url}
                   alt={`Gallery ${index + 1}`}
