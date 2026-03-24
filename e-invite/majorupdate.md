@@ -1,60 +1,57 @@
-# Major Update - 2026-03-24 (v10)
+# Major Update - 2026-03-24 (v11)
 
 ## Summary
-Comprehensive AI Designer rewrite with full page rewriting capability, photo reference system, JS/CSS/animation generation, design mode toggle, save auto-publish, media tab rewrite with 6-photo limit, and reinstall.sh fix.
+Media tab page load error fix, comprehensive security review with critical XSS and access control fixes, DOMPurify HTML sanitization.
 
 ## Changes
 
-### AI Designer — Comprehensive Rewrite (#1, #1.0, #1.1, #3, #4)
+### Media Tab Page Load Error Fix (#1 — Persistent Bug)
+- **Root cause:** `handleDrop` useCallback had a stale closure — it called `uploadFiles` but only listed `[isImage]` in its dependency array. When React re-rendered the component, `handleDrop` held a reference to the original `uploadFiles` which captured stale props/state, causing runtime errors.
+- **Fix:** Complete MediaUploader rewrite:
+  - `uploadFiles` moved to `useCallback` with full dependency array
+  - Stable refs (`currentFilesRef`, `onUploadRef`) used for callback props to prevent infinite re-render loops
+  - `handleDrop` dependency array now includes `[isImage, uploadFiles]`
+  - Inline validation inside `uploadFiles` to avoid closure over `validateFile`
+  - Stable React keys using `img-${index}-${url.slice(-10)}`
 
-#### Two Design Modes — Toggle in Top Bar (#6)
-- **Comprehensive Mode (Full)**: AI generates complete custom CSS with @keyframes animations, custom HTML with floating elements, photo backgrounds with text overlays, gradients, parallax effects, shimmer text, decorative SVGs
-- **Style Mode**: Quick font and color changes only — no CSS/HTML generation
-- Toggle switch in designer top bar labeled "Full" / "Style"
+### Security Review Findings & Fixes
 
-#### API Route Rewritten with 4 Prompt Templates
-- `COMPREHENSIVE_ENVELOPE_PROMPT`: Full envelope redesign — animations, gradients, backdrop-filter, custom CSS/HTML
-- `COMPREHENSIVE_INVITATION_PROMPT`: Full page rewrite — parallax hero, photo section backgrounds with text overlays, @keyframes animations, custom JS/CSS, decorative elements
-- `SIMPLE_ENVELOPE_PROMPT`: Colors + font only
-- `SIMPLE_INVITATION_PROMPT`: Colors + font + section toggles only
-- API accepts `comprehensive: boolean` to select mode
-- Photo reference system: `PHOTO_0` through `PHOTO_5` in CSS/HTML automatically replaced with actual URLs
+#### CRITICAL: Stored XSS via customHtml/customCss (#22)
+- **Issue:** `customHtml` rendered via `dangerouslySetInnerHTML` with no sanitization. AI prompt injection or direct PUT API could inject `<script>` tags served to all public visitors.
+- **Fix:** Added `isomorphic-dompurify` package. Created `src/lib/sanitize.ts` with:
+  - `sanitizeHtml()` — DOMPurify with allowed tags (div, span, SVG, etc.), strips scripts/iframes/forms/event handlers
+  - `sanitizeCss()` — strips `expression()`, `javascript:`, `-moz-binding`, `behavior:` patterns
+- Applied in: `/api/designer/generate` (after AI response parse) and `/api/invitations/[id]` PUT handler
 
-#### AIChatPanel Rewritten
-- Different preset prompts for each mode × each design level (4 sets total)
-- Comprehensive presets guide users to ask for parallax, photo overlays, animations, custom elements
-- Shows CSS/HTML badges when AI returns custom code
-- Photo reference instructions shown when gallery has photos
+#### CRITICAL: Hardcoded Fallback Encryption Key (#23)
+- **Issue:** `encryption.ts` had `process.env.NEXTAUTH_SECRET || "fallback-secret-key"` — if env var missing, uses a publicly known key. Attackers could decrypt all invitee special links.
+- **Fix:** Now throws error if NEXTAUTH_SECRET is not set: `if (!secret) throw new Error("NEXTAUTH_SECRET required")`
 
-### Media Tab Rewrite (#2)
-- **6-photo maximum** enforced with clear count display
-- **Photo index labels** shown on each uploaded photo: `photo[0]`, `photo[1]`, etc.
-- Index labels enable AI reference — users can say "use photo[0] as hero background"
-- Help text explains photo reference system for AI
-- Auto-crop via existing Sharp image processing on upload
+#### CRITICAL: Broken Access Control on Invitation CRUD (#24)
+- **Issue:** `PUT /api/invitations/[id]` and `DELETE /api/invitations/[id]` only checked authentication, not authorization. Any CLIENT could modify or delete any invitation.
+- **Fix:** PUT and DELETE now require ADMIN role. GET checks ADMIN or UserInvitation assignment.
 
-### Save Button Auto-Publish (#5)
-- If invitation is already published, Save button auto-publishes (no need to click Publish separately)
-- Button label: "Save & Publish" (if published) or "Save Draft" (if not)
-- Status toast: "Saved & Published" or "Saved as Draft" shown for 3 seconds
-- Publish button remains for initial publishing of drafts
-
-### reinstall.sh Fix (#7)
-- Script now auto-detects source files instead of requiring user to be in the source directory
-- Checks `SCRIPT_DIR` first (where reinstall.sh lives)
-- Falls back to existing install at `/opt/einvite` if available
-- Clear error message if neither location has source files
+#### HIGH: Settings Endpoint Lacked Role Check (#25)
+- **Issue:** `GET /api/settings` was accessible to any authenticated user. Server actions `getSetting()` and `getSettings()` had no auth check and could leak the Gemini API key.
+- **Fix:** GET endpoint requires ADMIN. Server actions require ADMIN and mask geminiApiKey as `***configured***`.
 
 ## Files Changed
-- `src/app/api/designer/generate/route.ts` — Complete rewrite: 4 prompt templates, photo reference replacement, comprehensive toggle
-- `src/components/designer/AIChatPanel.tsx` — Complete rewrite: mode-specific prompts, comprehensive prop, CSS/HTML badges
-- `src/components/designer/DesignerModal.tsx` — Comprehensive toggle, save auto-publish, status toast, media tab updates
-- `src/components/designer/MediaUploader.tsx` — 6-photo max, index labels, maxPhotos prop
-- `reinstall.sh` — Auto-detect source path
-- `CLAUDE.md` — Model name verified as gemini-3.1-flash-lite-preview
+- `src/components/designer/MediaUploader.tsx` — Complete rewrite fixing stale closure bug
+- `src/lib/sanitize.ts` — New: DOMPurify HTML/CSS sanitization utilities
+- `src/app/api/designer/generate/route.ts` — Sanitize AI-generated customHtml/customCss
+- `src/app/api/invitations/[id]/route.ts` — Admin-only PUT/DELETE, assignment-based GET, sanitize HTML/CSS
+- `src/app/api/settings/route.ts` — Admin-only GET
+- `src/app/actions/settings.ts` — Admin-only getSetting/getSettings, mask API key
+- `src/lib/encryption.ts` — Remove fallback key, throw on missing NEXTAUTH_SECRET
+- `CLAUDE.md` — Bug patterns #22-#26
 - `majorupdate.md` — This file
+- `package.json` — Added isomorphic-dompurify dependency
 
 ## Testing
 - Build succeeds ✓
 - All routes registered ✓
 - Type checking passes ✓
+- Security review completed with all CRITICAL and HIGH findings addressed ✓
+
+## New Dependency
+- `isomorphic-dompurify` — Server-side compatible DOMPurify for HTML sanitization

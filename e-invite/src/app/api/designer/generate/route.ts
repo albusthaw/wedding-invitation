@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sanitizeHtml, sanitizeCss } from "@/lib/sanitize";
 
 // Comprehensive mode: AI can rewrite entire page structure, generate custom CSS/JS/animations
 const COMPREHENSIVE_ENVELOPE_PROMPT = `You are an expert wedding invitation ENVELOPE designer. You can COMPLETELY redesign the envelope page from scratch — colors, layout effects, animations, custom CSS, and custom JavaScript.
@@ -230,6 +231,14 @@ export async function POST(request: NextRequest) {
       // Remove undefined
       for (const key of Object.keys(config)) {
         if (config[key] === undefined) delete config[key];
+      }
+
+      // Sanitize HTML/CSS to prevent XSS
+      if (typeof config.customHtml === "string" && config.customHtml) {
+        config.customHtml = sanitizeHtml(config.customHtml);
+      }
+      if (typeof config.customCss === "string" && config.customCss) {
+        config.customCss = sanitizeCss(config.customCss);
       }
     } catch {
       return NextResponse.json({
