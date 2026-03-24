@@ -3,52 +3,68 @@
 ## Summary
 Added configurable image generation model setting (`gemini-3.1-flash-image-preview`), fixed photo upload being misused as background, rebuilt AI design system with multi-turn refinement for major redesigns, added 10 preset prompts each for Page AI and Envelope AI, multi-element image generation.
 
-## Changes
+*(See Part 2 below for the deep-design pipeline overhaul)*
 
-### Settings: Image Generation Model (#38 update)
-- New `geminiImageModel` setting in Settings page, stored in DB
-- Positioned above API Key field
-- Default: `gemini-3.1-flash-image-preview` (the correct image-capable model)
-- Text design model (`gemini-3.1-flash-lite-preview`) and image generation model are now separate and independently configurable
-- Seed script updated to include default `geminiImageModel`
+---
 
-### Fix: Photo Upload Background Misuse (#38b)
-- **Problem:** Uploading a photo and asking AI "add to gallery" caused AI to set it as entire page `backgroundImage`
-- **Fix:** Rewrote all comprehensive AI prompts with explicit CRITICAL rules:
-  - "add to gallery" → keep `enableGallery=true`, NOT `backgroundImage`
-  - "use as background" → put in `backgroundImage` or `customCss`
-  - Added REMINDER in context when photos exist
-  - Photos default to gallery grid, only moved to background when explicitly requested
+# Major Update Part 2 - 2026-03-24 (v15)
 
-### Multi-Turn AI Refinement (#38c)
-- Major redesigns (keywords: complete, redesign, chinese, japanese, indian, theme, etc.) now use 2-step AI process:
-  1. **Plan**: AI describes design approach + generates initial JSON
-  2. **Refine**: AI self-critiques the plan and outputs improved, cohesive final JSON
-- Only triggers in comprehensive mode for major redesign requests
-- Simple color/font changes still use single-turn for speed
+## Summary
+Complete overhaul of the AI design pipeline. Comprehensive mode now runs a 3-phase deep-design pipeline (Planning → Image Generation → Design Assembly) that takes 1-5 minutes for full page/envelope redesigns with AI-generated custom images.
 
-### Multi-Element Image Generation (generate-image endpoint rewrite)
-- Text model plans 3-6 design elements from a single prompt
-- Image model generates each element separately
-- All images returned together, user adds all to gallery at once
-- Example: "Chinese wedding decorations" → generates red peonies, gold double-happiness, silk pattern, lantern, etc.
-- Cap: 6 elements max per generation request
+## Problem
+- Previous system just asked text model for a JSON config → returned in ~5 seconds
+- No actual image generation was happening during design requests
+- AI only changed background colors and fonts, no real visual elements created
+- No back-and-forth conversation to refine the design plan
 
-### 10 Preset Prompts (#38d)
-- **Envelope AI (comprehensive)**: Chinese wedding, dark moody, vintage lace, royal purple, tropical beach, art deco, rustic barn, winter wonderland, Japanese sakura, Indian mandala
-- **Page AI (comprehensive)**: Chinese wedding, garden party, luxury black/gold, beach tropical, royal Indian, rustic barn, modern minimalist, Japanese sakura, art deco gatsby, winter wonderland
+## Solution: 3-Phase Deep Design Pipeline
+
+### Phase 1: Planning (back-and-forth, up to 15 turns)
+- Text model (`gemini-3.1-flash-lite-preview`) iterates with itself, planning:
+  - Which decorative images are needed (flowers, borders, motifs, icons)
+  - Color palette and typography
+  - Animation concepts
+  - For each image: what it is, size (e.g. 200x200), position (e.g. top-left corner), CSS placement
+- AI must output "OPTIMAL" keyword to signal plan completion (acts as a brake)
+- By turn 10, system forces finalization regardless
+- Max 15 turns safety limit
+
+### Phase 2: Image Generation
+- Image model (`gemini-3.1-flash-image-preview`) generates each planned element
+- Each element generated with `responseModalities: ["TEXT", "IMAGE"]`
+- Images saved to `public/uploads/photos/ai-{uuid}.{ext}`
+- Image metadata includes: url, description, width, height, position, cssPlacement
+- Cap: 8 elements max per design
+- Images auto-added to gallery
+
+### Phase 3: Design Assembly
+- Text model receives ALL generated images + their metadata
+- Produces complete CSS/HTML config that:
+  - Positions every generated image using their cssPlacement data
+  - Creates matching color palette and typography
+  - Includes @keyframes animations (float, shimmer, fadeIn, pulse)
+  - Creates a cohesive theme tying everything together
+  - Must include ALL generated images in customCss/customHtml
+- This is a FULL redesign, not just background color changes
+
+### Visual Progress in Chat
+- System messages show each phase:
+  - "🔍 Phase 1/3 — Planning design elements and layout..."
+  - "🎨 Phase 2/3 — Generated N design element images"
+  - "🏗️ Phase 3/3 — Assembled complete design with all elements"
+- Pulsing amber indicator during processing
+- Shows "Deep designing... (1-5 min)" in loading state
+- Generated images displayed in grid before Apply button
 
 ## Files Changed
-- `src/app/dashboard/settings/page.tsx` — Added geminiImageModel field
-- `src/app/api/designer/generate/route.ts` — Rewrote all prompts, added multi-turn refinement, photo handling rules
-- `src/app/api/designer/generate-image/route.ts` — Reads image model from DB, multi-element generation
-- `src/components/designer/AIChatPanel.tsx` — 10 presets each, multi-image display, "Add All to Gallery"
-- `prisma/seed.ts` — Added geminiImageModel default
-- `CLAUDE.md` — Updated #38, added #38b-#38d
-- `majorupdate.md` — This file
+- `src/app/api/designer/deep-design/route.ts` — **New:** 3-phase pipeline endpoint
+- `src/components/designer/AIChatPanel.tsx` — Comprehensive mode routes to deep-design, shows phase progress, system messages
+- `CLAUDE.md` — Bug pattern #40 (deep design pipeline)
+- `majorupdate.md` — Part 2
 
 ## Testing
 - Build succeeds ✓
 - All 65 unit tests pass ✓
-- All routes registered ✓
-- Type checking passes ✓
+- New `/api/designer/deep-design` route registered ✓
+- Style-only mode still uses fast `/api/designer/generate` ✓
