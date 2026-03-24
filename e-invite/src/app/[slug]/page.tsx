@@ -10,24 +10,29 @@ interface PageProps {
 }
 
 async function getInvitationBySlug(slug: string) {
-  const invitation = await prisma.invitationLetter.findUnique({
-    where: { slug },
-    include: {
-      messages: {
-        orderBy: { createdAt: "desc" },
-      },
-      invitees: {
-        select: {
-          id: true,
-          name: true,
-          rsvpStatus: true,
-          numberOfGuests: true,
+  try {
+    const invitation = await prisma.invitationLetter.findUnique({
+      where: { slug },
+      include: {
+        messages: {
+          orderBy: { createdAt: "desc" },
+        },
+        invitees: {
+          select: {
+            id: true,
+            name: true,
+            rsvpStatus: true,
+            numberOfGuests: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return invitation;
+    return invitation;
+  } catch (error) {
+    console.error("Failed to fetch invitation by slug:", error);
+    return null;
+  }
 }
 
 function lookupInvitee(code: string) {
@@ -46,25 +51,29 @@ function lookupInvitee(code: string) {
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const invitation = await getInvitationBySlug(slug);
+  try {
+    const { slug } = await params;
+    const invitation = await getInvitationBySlug(slug);
 
-  if (!invitation || !invitation.published) {
+    if (!invitation || !invitation.published) {
+      return { title: "Invitation Not Found" };
+    }
+
+    return {
+      title: invitation.title,
+      description: `Wedding invitation for ${invitation.groomName} & ${invitation.brideName}`,
+      openGraph: {
+        title: invitation.title,
+        description: `You are invited to the wedding of ${invitation.groomName} & ${invitation.brideName}`,
+        type: "website",
+        ...(invitation.couplePhoto
+          ? { images: [{ url: invitation.couplePhoto }] }
+          : {}),
+      },
+    };
+  } catch {
     return { title: "Invitation Not Found" };
   }
-
-  return {
-    title: invitation.title,
-    description: `Wedding invitation for ${invitation.groomName} & ${invitation.brideName}`,
-    openGraph: {
-      title: invitation.title,
-      description: `You are invited to the wedding of ${invitation.groomName} & ${invitation.brideName}`,
-      type: "website",
-      ...(invitation.couplePhoto
-        ? { images: [{ url: invitation.couplePhoto }] }
-        : {}),
-    },
-  };
 }
 
 export default async function PublicInvitationPage({
@@ -114,7 +123,9 @@ export default async function PublicInvitationPage({
     groomPhoto: invitation.groomPhoto,
     bridePhoto: invitation.bridePhoto,
     couplePhoto: invitation.couplePhoto,
-    galleryPhotos: invitation.galleryPhotos,
+    galleryPhotos: typeof invitation.galleryPhotos === "string"
+      ? JSON.parse(invitation.galleryPhotos)
+      : invitation.galleryPhotos,
     musicFile: invitation.musicFile,
     designConfig: invitation.designConfig,
     customCss: invitation.customCss,
