@@ -1,6 +1,13 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { sanitizeHtml, sanitizeCss } from "@/lib/sanitize";
+
+async function checkAccess(userId: string, role: string, invitationId: string) {
+  if (role === "ADMIN") return true;
+  const a = await prisma.userInvitation.findFirst({ where: { userId, invitationId } });
+  return !!a;
+}
 
 export async function GET(
   _request: Request,
@@ -12,6 +19,11 @@ export async function GET(
   }
 
   const { id } = await params;
+
+  if (!(await checkAccess(session.user.id, session.user.role, id))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const invitation = await prisma.invitationLetter.findUnique({
     where: { id },
     include: {
@@ -36,8 +48,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden: Admin only" }, { status: 403 });
   }
 
   const { id } = await params;
@@ -56,9 +68,15 @@ export async function PUT(
     if (body.designConfig !== undefined) updateData.designConfig = body.designConfig;
     if (body.galleryPhotos !== undefined) updateData.galleryPhotos = body.galleryPhotos;
     if (body.musicFile !== undefined) updateData.musicFile = body.musicFile;
-    if (body.customCss !== undefined) updateData.customCss = body.customCss;
-    if (body.customHtml !== undefined) updateData.customHtml = body.customHtml;
     if (body.needsRepublish !== undefined) updateData.needsRepublish = body.needsRepublish;
+
+    // Sanitize HTML/CSS to prevent stored XSS
+    if (body.customCss !== undefined) {
+      updateData.customCss = sanitizeCss(body.customCss || "");
+    }
+    if (body.customHtml !== undefined) {
+      updateData.customHtml = sanitizeHtml(body.customHtml || "");
+    }
 
     const invitation = await prisma.invitationLetter.update({
       where: { id },
@@ -68,10 +86,7 @@ export async function PUT(
     return NextResponse.json(invitation);
   } catch (error) {
     console.error("Update invitation error:", error);
-    return NextResponse.json(
-      { error: "Failed to update invitation" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update invitation" }, { status: 500 });
   }
 }
 
@@ -80,8 +95,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden: Admin only" }, { status: 403 });
   }
 
   const { id } = await params;

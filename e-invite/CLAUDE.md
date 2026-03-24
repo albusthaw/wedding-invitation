@@ -367,6 +367,51 @@ Known bugs found and fixed — watch for regressions:
 ### 21. Gemini Model Name (Fixed)
 **Rule:** Default Gemini model is `gemini-3.1-flash-lite-preview`. Do NOT change this model name. It is the correct and intended model.
 
+### 22. Stored XSS via customHtml/customCss (Fixed)
+**Symptom:** Malicious JavaScript could be injected via customHtml and rendered on public invitation pages.
+**Fix:** Added `isomorphic-dompurify` sanitization. All customHtml is sanitized with DOMPurify (strips `<script>`, event handlers, iframe, etc.). All customCss is stripped of `expression()`, `javascript:`, `-moz-binding`, `behavior:`.
+**Rule:** ALWAYS sanitize customHtml with `sanitizeHtml()` and customCss with `sanitizeCss()` from `@/lib/sanitize` before storing. Applied in `/api/designer/generate` and `/api/invitations/[id]` PUT handler.
+
+### 23. Hardcoded Fallback Encryption Key Removed (Fixed)
+**Symptom:** If NEXTAUTH_SECRET missing, encryption used publicly known fallback key.
+**Fix:** `encryption.ts` now throws if NEXTAUTH_SECRET is not set instead of using fallback.
+**Rule:** NEVER add a fallback secret to the encryption module. The install.sh generates a random secret.
+
+### 24. Broken Access Control on Invitation CRUD (Fixed)
+**Symptom:** Any authenticated user (including CLIENT) could PUT/DELETE any invitation via API.
+**Fix:** PUT and DELETE on `/api/invitations/[id]` now require ADMIN role. GET checks assignment-based access.
+**Rule:** Invitation mutation (PUT, DELETE, publish, unpublish) requires ADMIN. GET requires ADMIN or UserInvitation assignment.
+
+### 25. Settings Endpoint Lacked Role Check (Fixed)
+**Symptom:** GET `/api/settings` and server actions exposed settings to any authenticated user.
+**Fix:** GET endpoint and server actions now require ADMIN role. getSetting/getSettings mask API keys.
+**Rule:** All settings endpoints and server actions require ADMIN role check.
+
+### 26. Publish/Unpublish Routes Lacked Role Check (Fixed)
+**Fix:** Publish and unpublish API routes now require ADMIN role.
+**Rule:** Only ADMIN can publish or unpublish invitations.
+
+### 27. Nested Invitee Routes Lacked Access Check (Fixed)
+**Fix:** POST and DELETE on `/api/invitations/[id]/invitees` now check UserInvitation assignment for non-admin users.
+**Rule:** All invitee-scoped operations must verify the user is ADMIN or assigned to the invitation.
+
+### 28. Users GET Returned All Users to CLIENT (Fixed)
+**Fix:** GET `/api/users` now requires ADMIN role.
+**Rule:** User enumeration is admin-only.
+
+### 29. Upload Extension Derived From User Filename (Fixed)
+**Fix:** File extension now derived from validated MIME type, not user-supplied filename. Prevents `.svg`/`.html` injection.
+**Rule:** ALWAYS use MIME-to-extension mapping for uploaded files. Never trust `file.name`.
+
+### 30. Bulk Invitee Import Lacked Access Check (Fixed)
+**Fix:** POST `/api/invitees/bulk` now checks UserInvitation assignment for non-admin users.
+
+### 31. Media Tab Page Load Error (Fixed)
+**Symptom:** Clicking Media tab in Designer shows "This page couldn't load" error.
+**Root cause:** `handleDrop` useCallback had stale closure — referenced `uploadFiles` but only had `[isImage]` in deps. On re-render, the stale closure caused runtime errors.
+**Fix:** Rewrote MediaUploader with proper useCallback dependencies, ref-based prop access for stability, and stable key generation.
+**Rule:** All useCallback hooks in MediaUploader must include their closure dependencies. Use refs for callback props to avoid infinite re-render loops.
+
 ## Testing
 
 ### Unit Tests (no server/database required)

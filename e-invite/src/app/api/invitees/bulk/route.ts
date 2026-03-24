@@ -20,13 +20,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify invitation exists
+    // Verify invitation exists and user has access
     const invitation = await prisma.invitationLetter.findUnique({
       where: { id: invitationId },
       select: { id: true, slug: true },
     });
     if (!invitation) {
       return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
+    }
+
+    if (session.user.role !== "ADMIN") {
+      const assignment = await prisma.userInvitation.findFirst({
+        where: { userId: session.user.id, invitationId },
+      });
+      if (!assignment) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     // Filter out empty names and duplicates

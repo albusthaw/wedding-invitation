@@ -3,7 +3,10 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypt
 const ALGORITHM = "aes-256-cbc";
 
 function getKey(): Buffer {
-  const secret = process.env.NEXTAUTH_SECRET || "fallback-secret-key";
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error("NEXTAUTH_SECRET environment variable is required for encryption");
+  }
   return createHash("sha256").update(secret).digest();
 }
 

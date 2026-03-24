@@ -16,9 +16,14 @@ async function requireAdmin() {
 }
 
 export async function getSetting(key: string): Promise<string | null> {
+  await requireAdmin();
   const setting = await prisma.setting.findUnique({
     where: { key },
   });
+  // Never return raw API keys
+  if (key === "geminiApiKey" && setting?.value) {
+    return "***configured***";
+  }
   return setting?.value ?? null;
 }
 
@@ -35,10 +40,15 @@ export async function setSetting(key: string, value: string) {
 }
 
 export async function getSettings(): Promise<Record<string, string>> {
+  await requireAdmin();
   const settings = await prisma.setting.findMany();
   const result: Record<string, string> = {};
   for (const setting of settings) {
-    result[setting.key] = setting.value;
+    if (setting.key === "geminiApiKey") {
+      result[setting.key] = setting.value ? "***configured***" : "";
+    } else {
+      result[setting.key] = setting.value;
+    }
   }
   return result;
 }
