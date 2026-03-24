@@ -69,24 +69,42 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const invitationId = searchParams.get("invitationId");
+  const isAdmin = session.user.role === "ADMIN";
 
-  const where = invitationId ? { invitationId } : {};
+  if (isAdmin) {
+    const where = invitationId ? { invitationId } : {};
+    const messages = await prisma.message.findMany({
+      where,
+      include: { invitation: { select: { id: true, title: true, slug: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(messages);
+  }
+
+  // Client: only messages for assigned invitations
+  const assignments = await prisma.userInvitation.findMany({
+    where: { userId: session.user.id },
+    select: { invitationId: true },
+  });
+  const assignedIds = assignments.map(a => a.invitationId);
+
+  const where: Record<string, unknown> = { invitationId: { in: assignedIds } };
+  if (invitationId && assignedIds.includes(invitationId)) {
+    where.invitationId = invitationId;
+  }
 
   const messages = await prisma.message.findMany({
     where,
-    include: {
-      invitation: { select: { id: true, title: true, slug: true } },
-    },
+    include: { invitation: { select: { id: true, title: true, slug: true } } },
     orderBy: { createdAt: "desc" },
   });
-
   return NextResponse.json(messages);
 }
 
 export async function DELETE(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -94,6 +112,23 @@ export async function DELETE(request: Request) {
 
   if (!id) {
     return NextResponse.json({ error: "Message ID required" }, { status: 400 });
+  }
+
+  // Admin can delete any message; Client can delete messages for assigned invitations
+  if (session.user.role !== "ADMIN") {
+    const message = await prisma.message.findUnique({
+      where: { id },
+      select: { invitationId: true },
+    });
+    if (!message) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+    const assignment = await prisma.userInvitation.findFirst({
+      where: { userId: session.user.id, invitationId: message.invitationId },
+    });
+    if (!assignment) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   await prisma.message.delete({ where: { id } });

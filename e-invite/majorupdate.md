@@ -1,81 +1,102 @@
-# Major Update - 2026-03-24 (v8)
+# Major Update - 2026-03-24 (v9)
 
 ## Summary
-Critical AI Designer fix (encrypted API key bug), clipboard copy fix, envelope page customization, Gemini model update.
+Complete AI Designer rewrite with dual-tab Envelope/Invitation design, role-based access control (admin vs client), Gemini model name fix, and new client dashboard.
 
 ## Changes
 
-### Bug Fixes
+### AI Designer Complete Rewrite (Bug #1, #2, #3)
 
-#### Gemini API Key Stored Encrypted (Critical - Bug #3 root cause)
-- **Symptom:** AI Designer completely non-functional. Clicking suggested prompts or pressing send does nothing visible. Error: "Failed to generate design."
-- **Root cause:** `/api/settings/route.ts` encrypted the Gemini API key with AES `encrypt()` before storing to DB. But `/api/designer/generate/route.ts` read the value back as-is without `decrypt()`, sending encrypted gibberish to Google Gemini. The API returned auth errors which were caught but not clearly shown.
-- **Fix:** Removed encryption from API key storage. The key is now stored in plain text (server-side only, masked in GET responses). Also removed unused `encrypt` import from settings route and `decrypt` import from test-gemini route.
-- **Impact:** This was the #1 reason the AI Designer appeared completely broken.
+#### AIChatPanel.tsx — Rewritten from scratch
+- **New `mode` prop**: `"envelope"` or `"invitation"` — each has its own preset prompts and context
+- **Direct fetch to `/api/designer/generate`** with proper error handling and error banner display
+- **Preset prompt buttons**: 6 envelope-specific prompts + 8 invitation-specific prompts, all clickable
+- **Send button**: Properly wired with `doSend()` function, disabled while loading
+- **Apply Changes**: Shows color preview chips, applies config on click
+- **Undo support**: Config history stack with undo button
+- **Error display**: Red banner below chat with dismiss button
 
-#### Clipboard Copy Not Working (Bug #1, #2)
-- **Symptom:** "Copy Link" on invitation letters page and "Copy Personal Link" on invitees page don't copy anything.
-- **Root cause:** `navigator.clipboard.writeText()` fails silently in non-HTTPS contexts or when the document loses focus.
-- **Fix:** Added try-catch with `document.execCommand("copy")` fallback using temporary hidden textarea on both pages.
+#### /api/designer/generate/route.ts — Rewritten
+- **Dual system prompts**: `ENVELOPE_PROMPT` and `INVITATION_PROMPT` — each tailored with exact element descriptions
+- **Envelope prompt** documents: background color, paper color, text color, button/seal color, stamp, greeting
+- **Invitation prompt** documents: Hero, Wedding Details, Countdown, Gallery, RSVP, Footer, Message Wall
+- **Mode parameter**: API accepts `mode: "envelope" | "invitation"` to select the right prompt
+- **5 envelope presets + 6 invitation presets** included in prompts
+- **Validation**: hex color regex, boolean checks, font validation, undefined cleanup
 
-#### Invalid Default Gemini Model Name (Bug #3 contributing)
-- **Symptom:** Even after fixing the API key encryption, AI generation could fail because `gemini-3.1-flash-lite-preview` is not a valid model.
-- **Fix:** Changed default model to `gemini-2.0-flash` in seed, settings page, .env.example, and CLAUDE.md.
+#### DesignerModal.tsx — Updated tabs
+- **Replaced single "AI" tab** with two tabs: "Envelope" (envelope design AI) and "Page AI" (invitation page AI)
+- Tab IDs: `"envelope-ai"`, `"page-ai"`, `"style"`, `"sections"`, `"media"`, `"css"`
+- Each AI tab renders `AIChatPanel` with the appropriate `mode` prop
 
-### New Features / Improvements
+### Gemini Model Name Fix (Bug #3)
+- **Reverted to `gemini-3.1-flash-lite-preview`** everywhere:
+  - `.env.example`, `prisma/seed.ts`, `src/app/dashboard/settings/page.tsx`
+  - `src/lib/gemini.ts`, `src/app/api/designer/generate/route.ts`
+  - `src/app/api/settings/test-gemini/route.ts`, `CLAUDE.md`
+- **Rule**: This model name is correct. Do NOT change it.
 
-#### AI Designer Major Rewrite (Feature #3, #3.1, #3.2)
-- **Complete system prompt rewrite** with:
-  - Two-screen documentation (Envelope Page + Main Invitation Page)
-  - Envelope design properties: `envelopeBgColor`, `envelopePaperColor`, `envelopeTextColor`
-  - 8 theme presets with full envelope color specs
-  - Section-by-section description of the invitation page
-  - Google Fonts organized by style
-  - CSS selector reference
-  - Gallery arrangement support
-  - Strict JSON-only output rules
-- **EnvelopeOpener component** now reads colors from designConfig:
-  - Background color, paper color, text color, primary (button) color all configurable
-  - Falls back to original cream/gold/dark defaults if not set
-  - All hardcoded colors replaced with dynamic props
-- **Error messages improved**: More specific error details surfaced to the chat panel
+### Role-Based Access Control (Bug #5, #5.1, #5.2)
 
-#### Envelope Page Customization (Feature #3.1)
-- AI can now modify both the envelope screen and the main invitation page in a single prompt
-- Three new design config fields: `envelopeBgColor`, `envelopePaperColor`, `envelopeTextColor`
-- Both InvitationPage components pass envelope config to EnvelopeOpener
+#### Sidebar.tsx — Role-aware navigation
+- Nav items now have `adminOnly` flag
+- CLIENT users only see: Dashboard, Invitees, Messages
+- ADMIN users see all: Dashboard, Invitation Letters, Users, Invitees, Designer, Messages, Settings
+- Subtitle shows "Admin Dashboard" or "Client Portal" based on role
 
-### Database Schema
-No schema changes in this update.
+#### Dashboard page — Split by role
+- **Admin**: Original dashboard with stats cards (Total Invitations, Users, Messages, Published Rate), recent invitations, recent messages
+- **Client**: New "My Invitations" page showing assigned invitation cards with:
+  - Title, couple names, slug, wedding date
+  - Invitee and message counts
+  - Preview link (if published)
+  - "Manage Invitees" link → `/dashboard/invitees?invitationId=xxx`
+
+#### Proxy route protection
+- Admin-only routes blocked for CLIENT: `/dashboard/invitations`, `/dashboard/users`, `/dashboard/designer`, `/dashboard/settings`
+- CLIENT attempting admin routes gets redirected to `/dashboard`
+
+#### API access control
+- **GET /api/invitations**: Admin sees all; Client sees only assigned invitations
+- **GET /api/messages**: Admin sees all; Client sees only messages for assigned invitations
+- **DELETE /api/messages**: Admin deletes any; Client can delete messages for their assigned invitations
+- **GET/POST/DELETE /api/invitees**: Access checked against UserInvitation assignments
+
+#### Invitees page — Query param support
+- Accepts `?invitationId=xxx` URL param for pre-selecting invitation
+- Works with client dashboard "Manage Invitees" links
+
+### Old Code Cleanup (Bug #4)
+- Removed old single-AI tab rendering code from DesignerModal
+- Removed stale `renderAITab()` function, replaced with `renderEnvelopeAITab()` and `renderPageAITab()`
 
 ## Files Changed
-- `src/app/api/settings/route.ts` — Removed API key encryption (plain text storage)
-- `src/app/api/settings/test-gemini/route.ts` — Read API key directly (no decrypt)
-- `src/app/api/designer/generate/route.ts` — Complete rewrite with envelope support, better priming
-- `src/app/dashboard/invitations/page.tsx` — Clipboard copy fallback
-- `src/app/dashboard/invitees/page.tsx` — Clipboard copy fallback with helper function
-- `src/app/dashboard/settings/page.tsx` — Default model updated to gemini-2.0-flash
-- `src/components/invitation/EnvelopeOpener.tsx` — Dynamic envelope colors from config
-- `src/app/[slug]/InvitationPage.tsx` — Pass envelope config to EnvelopeOpener
-- `src/components/invitation/InvitationPage.tsx` — Pass envelope config to EnvelopeOpener
-- `src/components/designer/AIChatPanel.tsx` — Envelope color preview, updated DesignConfig interface
-- `src/components/designer/DesignerModal.tsx` — Updated DesignConfig interface with envelope fields
-- `prisma/seed.ts` — Default model updated
-- `.env.example` — Default model updated
-- `CLAUDE.md` — New bug patterns (#18-#21), model name updated
+- `src/components/designer/AIChatPanel.tsx` — Complete rewrite with mode support
+- `src/app/api/designer/generate/route.ts` — Complete rewrite with dual prompts
+- `src/components/designer/DesignerModal.tsx` — Two AI tabs, updated interfaces
+- `src/components/Sidebar.tsx` — Role-aware nav with adminOnly flags
+- `src/app/dashboard/page.tsx` — Split admin/client dashboard
+- `src/proxy.ts` — Admin-only route blocking for clients
+- `src/app/api/invitations/route.ts` — Role-based filtering
+- `src/app/api/messages/route.ts` — Role-based access for GET and DELETE
+- `src/app/api/invitees/route.ts` — Assignment-based access check
+- `src/app/dashboard/invitees/page.tsx` — URL param preselection
+- `.env.example` — Model name reverted
+- `prisma/seed.ts` — Model name reverted
+- `src/app/dashboard/settings/page.tsx` — Model name reverted
+- `src/lib/gemini.ts` — Model name reverted
+- `src/app/api/settings/test-gemini/route.ts` — Model name reverted
+- `CLAUDE.md` — Bug pattern #21 updated, model name reverted
 - `majorupdate.md` — This file
 
 ## Testing
 - Build succeeds with all changes ✓
-- AI flow logic validated (JSON parsing, color validation, envelope fields) ✓
-- Clipboard fallback pattern verified ✓
-- Sandbox network restricted (no live Gemini testing) — test on deployment with Settings > Test Connection
+- All routes registered correctly ✓
+- Type checking passes ✓
 
-## IMPORTANT: Post-Deploy Steps
+## Post-Deploy Steps
 1. Run `prisma db push` to ensure schema is current
-2. Go to Settings > Gemini AI Integration
-3. Enter your Google Gemini API key
-4. Set model to `gemini-2.0-flash` (or your preferred model)
-5. Click "Save All Settings"
-6. Click "Test Connection" to verify
-7. **If previously configured**: You MUST re-enter the API key because the old value was encrypted and is now unreadable. The system now stores it in plain text.
+2. Go to Settings and re-enter Gemini API key if needed (old encrypted values won't work)
+3. Verify model is `gemini-3.1-flash-lite-preview`
+4. Test AI Designer: Open Designer > Click "Envelope" tab > Click any preset prompt
+5. Test Client access: Log in as CLIENT user, verify restricted navigation

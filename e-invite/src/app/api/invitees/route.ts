@@ -3,6 +3,14 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encryption";
 
+async function checkInvitationAccess(userId: string, role: string, invitationId: string): Promise<boolean> {
+  if (role === "ADMIN") return true;
+  const assignment = await prisma.userInvitation.findFirst({
+    where: { userId, invitationId },
+  });
+  return !!assignment;
+}
+
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
@@ -16,11 +24,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "invitationId required" }, { status: 400 });
   }
 
+  // Check access
+  if (!(await checkInvitationAccess(session.user.id, session.user.role, invitationId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const invitees = await prisma.invitee.findMany({
     where: { invitationId },
-    include: {
-      invitation: { select: { slug: true } },
-    },
+    include: { invitation: { select: { slug: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -38,13 +49,14 @@ export async function POST(request: NextRequest) {
     const { name, invitationId } = body;
 
     if (!name || !invitationId) {
-      return NextResponse.json(
-        { error: "Name and invitationId are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Name and invitationId are required" }, { status: 400 });
     }
 
-    // Verify invitation exists
+    // Check access
+    if (!(await checkInvitationAccess(session.user.id, session.user.role, invitationId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const invitation = await prisma.invitationLetter.findUnique({
       where: { id: invitationId },
       select: { id: true, slug: true },
@@ -83,6 +95,18 @@ export async function DELETE(request: NextRequest) {
 
   if (!id) {
     return NextResponse.json({ error: "Invitee ID required" }, { status: 400 });
+  }
+
+  // Check access for non-admin
+  if (session.user.role !== "ADMIN") {
+    const invitee = await prisma.invitee.findUnique({
+      where: { id },
+      select: { invitationId: true },
+    });
+    if (!invitee) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!(await checkInvitationAccess(session.user.id, session.user.role, invitee.invitationId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   await prisma.invitee.delete({ where: { id } });
