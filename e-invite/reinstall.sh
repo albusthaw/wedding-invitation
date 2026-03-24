@@ -199,7 +199,7 @@ ensure_tools() {
 deploy_application() {
     print_step "Deploying fresh application..."
 
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # SCRIPT_DIR is resolved early in main() before clean_old_app deletes anything
 
     # Auto-detect source: check script dir first, then existing install
     SOURCE_DIR="$SCRIPT_DIR"
@@ -429,6 +429,10 @@ main() {
     print_banner
     check_root
     detect_os
+
+    # Resolve script directory NOW before clean_old_app deletes it
+    # If the script runs from /opt/einvite and we delete that dir, pwd fails later
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
     # Phase 1: Tear down running services
     stop_services
