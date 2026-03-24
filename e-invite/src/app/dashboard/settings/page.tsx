@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 export default function SettingsPage() {
   const [brandName, setBrandName] = useState("E-Invite");
   const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [geminiImageModel, setGeminiImageModel] = useState("gemini-3.1-flash-image-preview");
   const [geminiModel, setGeminiModel] = useState("gemini-3.1-flash-lite-preview");
   const [showApiKey, setShowApiKey] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,7 @@ export default function SettingsPage() {
           const data = await res.json();
           if (data.brandName) setBrandName(data.brandName);
           if (data.geminiApiKey) setGeminiApiKey(data.geminiApiKey);
+          if (data.geminiImageModel) setGeminiImageModel(data.geminiImageModel);
           if (data.geminiModel) setGeminiModel(data.geminiModel);
         }
       } catch {
@@ -62,7 +64,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brandName, geminiApiKey, geminiModel }),
+        body: JSON.stringify({ brandName, geminiApiKey, geminiImageModel, geminiModel }),
       });
       if (res.ok) {
         setAllMessage("All settings saved successfully");
@@ -180,6 +182,23 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-5">
+            {/* Image Generation Model */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                Image Generation Model
+              </label>
+              <input
+                type="text"
+                value={geminiImageModel}
+                onChange={(e) => setGeminiImageModel(e.target.value)}
+                placeholder="gemini-3.1-flash-image-preview"
+                className="w-full px-4 py-3 rounded-lg bg-[#0f0f23] border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-[#c9a96e] focus:ring-1 focus:ring-[#c9a96e] transition-all font-mono text-sm"
+              />
+              <p className="text-gray-500 text-xs mt-1.5">
+                Used for AI design element image generation. Default: gemini-3.1-flash-image-preview
+              </p>
+            </div>
+
             {/* API Key */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">

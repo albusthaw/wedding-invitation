@@ -5,8 +5,18 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import crypto from "crypto";
 
-// Image generation model (supports image output)
-const IMAGE_MODEL = "gemini-2.0-flash-exp";
+const DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-image-preview";
+
+async function saveImageFromBase64(data: string, mimeType: string): Promise<string> {
+  const ext = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg";
+  const uploadDir = join(process.cwd(), "public", "uploads", "photos");
+  await mkdir(uploadDir, { recursive: true });
+  const fileName = `ai-${crypto.randomUUID()}.${ext}`;
+  const filePath = join(uploadDir, fileName);
+  const buffer = Buffer.from(data, "base64");
+  await writeFile(filePath, buffer);
+  return `/uploads/photos/${fileName}`;
+}
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -16,14 +26,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { prompt, invitationId, context } = body;
+    const { prompt, invitationId, context, generateMultiple } = body;
 
     if (!prompt || !invitationId) {
       return NextResponse.json({ error: "Missing prompt or invitationId" }, { status: 400 });
     }
 
     const apiKeySetting = await prisma.setting.findUnique({ where: { key: "geminiApiKey" } });
+    const imageModelSetting = await prisma.setting.findUnique({ where: { key: "geminiImageModel" } });
     const apiKey = apiKeySetting?.value;
+    const imageModel = imageModelSetting?.value || DEFAULT_IMAGE_MODEL;
 
     if (!apiKey) {
       return NextResponse.json(
@@ -35,75 +47,110 @@ export async function POST(request: NextRequest) {
     const { GoogleGenAI } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey });
 
-    const fullPrompt = `You are a professional wedding invitation graphic designer. Create a high-quality decorative design element for a wedding invitation.
+    const generatedImages: { url: string; description: string }[] = [];
 
-## Context
-${context || "Wedding invitation design element"}
+    if (generateMultiple) {
+      // Multi-turn: AI plans elements, then we generate each one
+      const planPrompt = `You are a wedding invitation design consultant. The user wants: "${prompt}"
+Context: ${context || "Wedding invitation"}
 
-## Request
-${prompt}
+List exactly the design element images needed. Return ONLY a JSON array of objects, each with "prompt" (detailed image generation prompt) and "description" (short label).
+Example: [{"prompt":"Elegant red peony flower with gold leaves on transparent background, watercolor style","description":"Red peony decoration"},{"prompt":"Gold Chinese double happiness symbol, ornate calligraphy style","description":"Double happiness symbol"}]
 
-## Rules
-- Create a beautiful, elegant design element suitable for a wedding invitation
-- Use transparent or clean backgrounds when possible
-- Make it high quality and visually appealing
-- The image should be a design ELEMENT (decoration, border, flower, ornament, etc.), not a full page
-- Keep it elegant and tasteful for a wedding context`;
+Rules:
+- Generate 3-6 elements that together create a cohesive theme
+- Each prompt should describe ONE specific image element
+- Include colors, style, and "transparent background" or "clean background"
+- Be specific about the visual style (watercolor, vector, ornate, minimalist, etc.)
+- Return ONLY the JSON array, no other text`;
 
-    const response = await ai.models.generateContent({
-      model: IMAGE_MODEL,
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-      config: {
-        responseModalities: ["TEXT", "IMAGE"],
-      },
-    });
+      const planRes = await ai.models.generateContent({
+        model: imageModelSetting?.value ? imageModel : "gemini-3.1-flash-lite-preview",
+        contents: [{ role: "user", parts: [{ text: planPrompt }] }],
+      });
 
-    // Extract image from response
-    const candidate = response.candidates?.[0];
-    if (!candidate?.content?.parts) {
-      return NextResponse.json(
-        { error: "AI did not generate an image. Try a different prompt." },
-        { status: 422 }
-      );
-    }
+      const planText = planRes.text || "";
+      let elements: { prompt: string; description: string }[] = [];
+      try {
+        const match = planText.match(/\[[\s\S]*\]/);
+        if (match) elements = JSON.parse(match[0]);
+      } catch {
+        elements = [{ prompt, description: "Design element" }];
+      }
 
-    let imageUrl: string | null = null;
-    let textResponse = "";
+      // Cap at 6 elements
+      elements = elements.slice(0, 6);
 
-    for (const part of candidate.content.parts) {
-      if (part.text) {
-        textResponse += part.text;
-      } else if (part.inlineData) {
-        // Save the image to disk
-        const imageData = part.inlineData.data;
-        if (!imageData) continue;
+      // Generate each element image
+      for (const el of elements) {
+        try {
+          const imgRes = await ai.models.generateContent({
+            model: imageModel,
+            contents: [{ role: "user", parts: [{ text: `Create a high-quality wedding design element: ${el.prompt}` }] }],
+            config: { responseModalities: ["TEXT", "IMAGE"] },
+          });
 
-        const mimeType = part.inlineData.mimeType || "image/png";
-        const ext = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg";
+          const candidate = imgRes.candidates?.[0];
+          if (!candidate?.content?.parts) continue;
 
-        const uploadDir = join(process.cwd(), "public", "uploads", "photos");
-        await mkdir(uploadDir, { recursive: true });
+          for (const part of candidate.content.parts) {
+            if (part.inlineData?.data) {
+              const url = await saveImageFromBase64(
+                part.inlineData.data,
+                part.inlineData.mimeType || "image/png"
+              );
+              generatedImages.push({ url, description: el.description });
+              break; // one image per element
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to generate element "${el.description}":`, err);
+        }
+      }
+    } else {
+      // Single image generation
+      const fullPrompt = `Create a high-quality decorative design element for a wedding invitation.
+Context: ${context || "Wedding invitation design element"}
+Request: ${prompt}
+Rules: elegant, tasteful for wedding, transparent or clean background, high quality.`;
 
-        const fileName = `ai-${crypto.randomUUID()}.${ext}`;
-        const filePath = join(uploadDir, fileName);
+      const response = await ai.models.generateContent({
+        model: imageModel,
+        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+        config: { responseModalities: ["TEXT", "IMAGE"] },
+      });
 
-        const buffer = Buffer.from(imageData, "base64");
-        await writeFile(filePath, buffer);
+      const candidate = response.candidates?.[0];
+      if (!candidate?.content?.parts) {
+        return NextResponse.json(
+          { error: "AI did not generate an image. Try a different prompt." },
+          { status: 422 }
+        );
+      }
 
-        imageUrl = `/uploads/photos/${fileName}`;
+      let textResponse = "";
+      for (const part of candidate.content.parts) {
+        if (part.text) textResponse += part.text;
+        else if (part.inlineData?.data) {
+          const url = await saveImageFromBase64(
+            part.inlineData.data,
+            part.inlineData.mimeType || "image/png"
+          );
+          generatedImages.push({ url, description: textResponse || "Design element" });
+        }
       }
     }
 
-    if (!imageUrl) {
+    if (generatedImages.length === 0) {
       return NextResponse.json(
-        { error: "AI could not generate an image for this request. Try rephrasing.", detail: textResponse.slice(0, 300) },
+        { error: "AI could not generate images for this request. Try rephrasing." },
         { status: 422 }
       );
     }
 
     return NextResponse.json({
-      url: imageUrl,
-      description: textResponse || "Design element generated",
+      images: generatedImages,
+      count: generatedImages.length,
     });
   } catch (error) {
     console.error("Image generation error:", error);
