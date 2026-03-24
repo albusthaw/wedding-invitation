@@ -219,9 +219,19 @@ cd ..
 unzip einvite.zip -d e-invite
 cd e-invite
 chmod +x install.sh reinstall.sh
-sudo ./install.sh          # Fresh server
-# OR
-sudo ./reinstall.sh        # Existing server (drops DB, preserves uploads)
+sudo ./install.sh          # Fresh server (first time)
+```
+
+**Reinstallation flow (existing server):**
+```bash
+rm -r /opt/einvite
+cd /tmp
+wget http://minthantthaw.me/einvite.zip
+mkdir -p /opt/einvite && unzip /tmp/einvite.zip -d /opt/einvite
+cd /opt/einvite
+chmod +x reinstall.sh
+sudo ./reinstall.sh
+```
 ```
 
 `install.sh` will automatically:
@@ -234,6 +244,22 @@ sudo ./reinstall.sh        # Existing server (drops DB, preserves uploads)
 7. Run `npm run build` (production build)
 8. Configure Nginx reverse proxy
 9. Start app via PM2 with auto-restart
+
+`reinstall.sh` is for fresh reinstallation on a server that already had E-Invite. It assumes:
+- The user has already deleted `/opt/einvite` and extracted fresh `einvite.zip` there
+- The script runs from `/opt/einvite` (the extracted zip directory)
+- It does NOT copy files or back up uploads — it's a clean slate
+
+`reinstall.sh` phases:
+1. Stop old PM2 process
+2. Install/verify prerequisites (Node.js, MySQL, Nginx, PM2, build tools)
+3. Drop and recreate database with new credentials
+4. Generate fresh `.env` with new secrets
+5. Clean `npm install`, Prisma generate, db push, seed
+6. `npm run build`
+7. Create upload directories
+8. Configure Nginx reverse proxy
+9. Start PM2 + configure firewall
 10. Configure UFW firewall
 
 **Alternative: `./package.sh`** creates a timestamped archive (`einvite-v1.0.0-20260323_120000.zip`) using the same exclusions.
