@@ -25,7 +25,7 @@ async function main() {
   // Create default settings
   const defaultSettings: Record<string, string> = {
     brandName: "E-Invite",
-    geminiModel: "gemini-2.0-flash",
+    geminiModel: "gemini-3.1-flash-lite-preview",
   };
 
   for (const [key, value] of Object.entries(defaultSettings)) {

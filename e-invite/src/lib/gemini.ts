@@ -12,7 +12,7 @@ export async function generateDesign(
   client: GoogleGenAI,
   prompt: string,
   currentConfig: Record<string, unknown>,
-  model: string = "gemini-2.0-flash"
+  model: string = "gemini-3.1-flash-lite-preview"
 ): Promise<Record<string, unknown>> {
   const systemPrompt = `You are a wedding invitation design assistant. You help create beautiful wedding page designs by generating JSON configuration objects.
 

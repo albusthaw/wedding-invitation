@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface Invitee {
   id: string;
@@ -21,8 +22,10 @@ interface Invitation {
 }
 
 export default function InviteesPage() {
+  const searchParams = useSearchParams();
+  const preselectedId = searchParams.get("invitationId") || "";
   const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [selectedInvitation, setSelectedInvitation] = useState<string>("");
+  const [selectedInvitation, setSelectedInvitation] = useState<string>(preselectedId);
   const [invitees, setInvitees] = useState<Invitee[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -44,7 +47,9 @@ export default function InviteesPage() {
         const list = Array.isArray(data) ? data : [];
         setInvitations(list);
         if (list.length > 0 && !selectedInvitation) {
-          setSelectedInvitation(list[0].id);
+          // Use preselected if it exists in the list, otherwise first
+          const preId = preselectedId && list.find((i: Invitation) => i.id === preselectedId) ? preselectedId : list[0].id;
+          setSelectedInvitation(preId);
         }
       })
       .catch(() => {})

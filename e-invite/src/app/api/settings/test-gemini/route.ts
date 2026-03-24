@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   let apiKey = body.apiKey as string;
-  const model = (body.model as string) || "gemini-2.0-flash";
+  const model = (body.model as string) || "gemini-3.1-flash-lite-preview";
 
   if (!apiKey || apiKey === "***configured***") {
     const setting = await prisma.setting.findUnique({

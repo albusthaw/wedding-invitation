@@ -10,7 +10,7 @@ E-Invite is a full-stack wedding invitation management system built with Next.js
 - **Animations**: Framer Motion 12.x
 - **Database**: MySQL via Prisma ORM 7.x
 - **Auth**: NextAuth.js v5 (Auth.js) with JWT strategy
-- **AI**: Google Gemini API (`@google/genai`) - default model: `gemini-2.0-flash`
+- **AI**: Google Gemini API (`@google/genai`) - default model: `gemini-3.1-flash-lite-preview`
 - **Image Processing**: Sharp 0.34.x
 - **Audio**: Native HTML5 Audio API
 - **Runtime**: Node.js 24.x LTS
@@ -158,7 +158,7 @@ npx prisma studio    # Open Prisma Studio GUI
 | NEXTAUTH_SECRET | JWT signing secret | (generate random) |
 | NEXTAUTH_URL | App base URL | http://localhost:3000 |
 | GEMINI_API_KEY | Google Gemini API key | (empty) |
-| GEMINI_MODEL | Gemini model name | gemini-2.0-flash |
+| GEMINI_MODEL | Gemini model name | gemini-3.1-flash-lite-preview |
 
 ## Photo Upload & AI Optimization
 - Upload endpoint validates image dimensions (max 2000x2000) and file size (max 2MB)
@@ -364,10 +364,8 @@ Known bugs found and fixed — watch for regressions:
 **Fix:** Added `envelopeBgColor`, `envelopePaperColor`, `envelopeTextColor` to the design config. EnvelopeOpener component now reads these from config with sensible defaults. AI system prompt documents both screens.
 **Rule:** The envelope uses `envelopeBgColor` (dark background), `envelopePaperColor` (light paper), `envelopeTextColor` (dark text on paper). These are optional fields with fallback defaults.
 
-### 21. Default Gemini Model Name Invalid (Fixed)
-**Symptom:** AI generation fails even with correct API key because model `gemini-3.1-flash-lite-preview` doesn't exist.
-**Fix:** Changed default model to `gemini-2.0-flash` everywhere (seed, settings page, .env.example, CLAUDE.md).
-**Rule:** Default Gemini model is `gemini-2.0-flash`. Users can change it in Settings.
+### 21. Gemini Model Name (Fixed)
+**Rule:** Default Gemini model is `gemini-3.1-flash-lite-preview`. Do NOT change this model name. It is the correct and intended model.
 
 ## Testing
 

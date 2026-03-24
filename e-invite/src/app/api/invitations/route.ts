@@ -8,14 +8,31 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const invitations = await prisma.invitationLetter.findMany({
+  const isAdmin = session.user.role === "ADMIN";
+
+  if (isAdmin) {
+    // Admin sees all invitations
+    const invitations = await prisma.invitationLetter.findMany({
+      include: {
+        _count: { select: { invitees: true, messages: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(invitations);
+  }
+
+  // Client sees only assigned invitations
+  const assignments = await prisma.userInvitation.findMany({
+    where: { userId: session.user.id },
     include: {
-      _count: {
-        select: { invitees: true, messages: true },
+      invitation: {
+        include: {
+          _count: { select: { invitees: true, messages: true } },
+        },
       },
     },
-    orderBy: { createdAt: "desc" },
   });
 
+  const invitations = assignments.map(a => a.invitation);
   return NextResponse.json(invitations);
 }
