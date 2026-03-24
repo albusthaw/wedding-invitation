@@ -74,9 +74,21 @@ export default function InvitationsPage() {
     }
   }
 
-  function handleCopyLink(slug: string) {
+  async function handleCopyLink(slug: string) {
     const url = `${window.location.origin}/${slug}`;
-    navigator.clipboard.writeText(url);
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Fallback for non-secure contexts or when clipboard API fails
+      const textarea = document.createElement("textarea");
+      textarea.value = url;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
     setCopied(slug);
     setTimeout(() => setCopied(null), 2000);
   }

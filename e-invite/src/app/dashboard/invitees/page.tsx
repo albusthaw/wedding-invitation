@@ -75,6 +75,21 @@ export default function InviteesPage() {
     return `${baseUrl}/${slug}?special=${encodeURIComponent(invitee.specialCode)}`;
   }
 
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+  }
+
   async function handleAddInvitee(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim() || !selectedInvitation) return;
@@ -413,7 +428,7 @@ export default function InviteesPage() {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => {
-                          navigator.clipboard.writeText(getSpecialLink(invitee));
+                          copyToClipboard(getSpecialLink(invitee));
                           setSuccess(`Link copied for ${invitee.name}`);
                           setTimeout(() => setSuccess(""), 2000);
                         }}
@@ -491,7 +506,7 @@ export default function InviteesPage() {
                 )}
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(getSpecialLink(invitee));
+                    copyToClipboard(getSpecialLink(invitee));
                     setSuccess(`Link copied for ${invitee.name}`);
                     setTimeout(() => setSuccess(""), 2000);
                   }}

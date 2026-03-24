@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 export default function SettingsPage() {
   const [brandName, setBrandName] = useState("E-Invite");
   const [geminiApiKey, setGeminiApiKey] = useState("");
-  const [geminiModel, setGeminiModel] = useState("gemini-3.1-flash-lite-preview");
+  const [geminiModel, setGeminiModel] = useState("gemini-2.0-flash");
   const [showApiKey, setShowApiKey] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingBrand, setSavingBrand] = useState(false);
@@ -227,11 +227,11 @@ export default function SettingsPage() {
                 type="text"
                 value={geminiModel}
                 onChange={(e) => setGeminiModel(e.target.value)}
-                placeholder="gemini-3.1-flash-lite-preview"
+                placeholder="gemini-2.0-flash"
                 className="w-full px-4 py-3 rounded-lg bg-[#0f0f23] border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-[#c9a96e] focus:ring-1 focus:ring-[#c9a96e] transition-all font-mono text-sm"
               />
               <p className="text-gray-500 text-xs mt-1.5">
-                Default: gemini-3.1-flash-lite-preview
+                Default: gemini-2.0-flash
               </p>
             </div>
 

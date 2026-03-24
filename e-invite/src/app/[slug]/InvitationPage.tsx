@@ -54,7 +54,11 @@ export default function InvitationPage({
   const config = (invitation.designConfig || {}) as Record<string, unknown>;
   const primaryFont = (config.primaryFont as string) || "Great Vibes";
   const bgColor = (config.backgroundColor as string) || "#0d0505";
+  const primaryColor = (config.primaryColor as string) || "#ed5566";
   const bgImage = (config.backgroundImage as string) || "";
+  const envelopeBgColor = (config.envelopeBgColor as string) || undefined;
+  const envelopePaperColor = (config.envelopePaperColor as string) || undefined;
+  const envelopeTextColor = (config.envelopeTextColor as string) || undefined;
   const galleryPhotos = Array.isArray(invitation.galleryPhotos)
     ? (invitation.galleryPhotos as string[])
     : [];
@@ -89,6 +93,10 @@ export default function InvitationPage({
             inviteeName={inviteeName || undefined}
             onOpen={() => setIsOpen(true)}
             fontFamily={primaryFont}
+            bgColor={envelopeBgColor}
+            paperColor={envelopePaperColor}
+            textColor={envelopeTextColor}
+            primaryColor={primaryColor}
           />
         )}
       </AnimatePresence>
