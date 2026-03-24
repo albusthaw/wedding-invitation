@@ -16,6 +16,7 @@ const COMPREHENSIVE_ENVELOPE_PROMPT = `You are an expert wedding invitation ENVE
 - **Decorative elements**: Gold accent borders, LOVE stamp, particles
 - **Custom CSS**: You can inject CSS to dramatically alter the envelope appearance — gradients, backgrounds, borders, text effects, glow, shadows
 - **Custom HTML**: You can inject custom HTML after the envelope for extra animated elements (floating petals, sparkles, decorative frames)
+- **AI-generated images**: Users can generate custom design element images (flowers, borders, ornaments) and add them to the gallery. Reference them with PHOTO_N in customCss/customHtml for envelope decorations.
 
 ## JSON to return (ALL fields)
 {
@@ -44,13 +45,13 @@ const COMPREHENSIVE_INVITATION_PROMPT = `You are an expert wedding invitation PA
 1. **Hero** — Full viewport. Couple names in primaryFont, title, wedding date. Background uses backgroundColor. You can add background images, gradient overlays, parallax effects via customCss.
 2. **Wedding Details** — Circular couple photos, names, date/time columns, venue. Uses accentColor for dividers/ornaments.
 3. **Countdown Timer** — Days/hours/minutes/seconds. Uses accent and text colors.
-4. **Photo Gallery** — Grid of up to 6 uploaded photos. You can reference photos by index: photo[0], photo[1], etc.
+4. **Photo Gallery** — Grid of uploaded photos. You can reference photos by index: photo[0], photo[1], etc. AI-generated design elements are also stored as photos.
 5. **RSVP Form** — Name, Accept/Decline, guest count, message. Button uses primaryColor.
 6. **Message Wall** — Floating bottom-left ticker + Send Blessing button.
 7. **Footer** — Couple names.
 
 ## Photo References
-Gallery photos are indexed 0-5. You can use them in customCss as backgrounds:
+Gallery photos are indexed by number. You can use them in customCss as backgrounds:
 - \`.hero-bg { background-image: url(PHOTO_0); }\` → replaced with actual photo URL
 - \`.section-bg { background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(PHOTO_1); }\`
 - Photos can be used as section backgrounds with text overlays
@@ -83,7 +84,7 @@ Gallery photos are indexed 0-5. You can use them in customCss as backgrounds:
 1. Return ONLY valid JSON — no markdown, no backticks
 2. All colors: #RRGGBB hex
 3. Be BOLD and CREATIVE — animations, gradients, parallax, text effects
-4. Use PHOTO_N (N=0-5) to reference gallery photos in CSS/HTML — they get replaced with actual URLs
+4. Use PHOTO_N to reference gallery photos in CSS/HTML — they get replaced with actual URLs
 5. customCss should not break the responsive layout
 6. For theme overhauls: change ALL colors + font + customCss together
 7. customHtml for extra floating/animated elements (keep lightweight)`;

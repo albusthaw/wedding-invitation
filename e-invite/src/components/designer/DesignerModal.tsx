@@ -47,7 +47,7 @@ interface DesignerModalProps {
   onUnpublish: () => Promise<void>;
 }
 
-type TabId = "envelope-ai" | "page-ai" | "style" | "sections" | "media" | "css";
+type TabId = "envelope-ai" | "page-ai" | "style" | "sections" | "css";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   {
@@ -83,15 +83,6 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-      </svg>
-    ),
-  },
-  {
-    id: "media",
-    label: "Media",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
     ),
   },
@@ -298,7 +289,11 @@ export default function DesignerModal({
         mode="envelope"
         currentConfig={config}
         onApplyConfig={handleAIApplyConfig}
+        onAddPhoto={(url) => setGalleryPhotos(prev => [...prev, url])}
+        onAddMusic={(url) => setMusicFile(url)}
         invitationId={invitation.id}
+        galleryPhotos={galleryPhotos}
+        musicFile={musicFile}
         comprehensive={comprehensive}
       />
     );
@@ -311,8 +306,11 @@ export default function DesignerModal({
         currentConfig={config}
         onApplyConfig={handleAIApplyConfig}
         onReorderGallery={handleGalleryReorder}
+        onAddPhoto={(url) => setGalleryPhotos(prev => [...prev, url])}
+        onAddMusic={(url) => setMusicFile(url)}
         invitationId={invitation.id}
         galleryPhotos={galleryPhotos}
+        musicFile={musicFile}
         comprehensive={comprehensive}
       />
     );
@@ -447,68 +445,6 @@ export default function DesignerModal({
     );
   }
 
-  function renderMediaTab() {
-    return (
-      <div className="p-4 space-y-6 overflow-y-auto h-full custom-scrollbar">
-        {/* Gallery photos */}
-        <div>
-          <h4 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-2">
-            Gallery Photos <span className="text-white/20">({galleryPhotos.length}/6)</span>
-          </h4>
-          <p className="text-[10px] text-white/30 mb-3">
-            Photos are labeled photo[0]-photo[5]. Reference them in Page AI for section backgrounds and overlays.
-          </p>
-          <MediaUploader
-            type="gallery"
-            currentFiles={galleryPhotos}
-            onUpload={handleGalleryUpload}
-            onDelete={handleGalleryDelete}
-            invitationId={invitation.id}
-            maxPhotos={6}
-          />
-        </div>
-
-        {/* Background music */}
-        <div className="pt-4 border-t border-white/5">
-          <h4 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-3">
-            Background Music
-          </h4>
-          <MediaUploader
-            type="music"
-            currentFiles={musicFile ? [musicFile] : []}
-            onUpload={handleMusicUpload}
-            onDelete={handleMusicDelete}
-            invitationId={invitation.id}
-          />
-          {musicFile && (
-            <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-[#c9a96e]/5 border border-[#c9a96e]/20">
-              <div className="w-8 h-8 rounded-lg bg-[#c9a96e]/10 flex items-center justify-center shrink-0">
-                <svg className="w-4 h-4 text-[#c9a96e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/70 truncate">
-                  {musicFile.split("/").pop() || "Music file"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleMusicDelete}
-                className="p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
-                title="Remove music"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   function renderCSSTab() {
     return (
       <div className="p-4 flex flex-col h-full">
@@ -564,8 +500,6 @@ export default function DesignerModal({
         return renderStyleTab();
       case "sections":
         return renderSectionsTab();
-      case "media":
-        return renderMediaTab();
       case "css":
         return renderCSSTab();
       default:

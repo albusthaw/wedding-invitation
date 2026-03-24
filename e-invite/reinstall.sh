@@ -1,55 +1,50 @@
 #!/bin/bash
 #
 # E-Invite - Wedding Invitation System
-# Reinstall Script — fresh reinstall on a system that already has E-Invite
+# Fresh Reinstallation Script
 #
-# Handles all conflicts: existing database/user, running PM2 processes,
-# Nginx configs, stale node_modules, etc.
+# Assumes:
+#   1. You already deleted the old /opt/einvite
+#   2. You extracted einvite.zip into /opt/einvite
+#   3. You are running this script FROM /opt/einvite
 #
-# Usage: chmod +x reinstall.sh && sudo ./reinstall.sh
+# Usage:
+#   rm -r /opt/einvite
+#   mkdir -p /opt/einvite && unzip /tmp/einvite.zip -d /opt/einvite
+#   cd /opt/einvite
+#   chmod +x reinstall.sh
+#   sudo ./reinstall.sh
 #
 
 set -e
 
-# Prevent any interactive prompts from apt and other tools
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
-# Colors for output
+# ── Colors ──────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-APP_DIR="/opt/einvite"
+NC='\033[0m'
 
 print_banner() {
     echo -e "${RED}"
     echo "╔══════════════════════════════════════════╗"
-    echo "║        E-Invite Reinstallation           ║"
+    echo "║      E-Invite Fresh Reinstallation       ║"
     echo "║    Wedding Invitation System v1.0        ║"
     echo "╚══════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
-print_step() {
-    echo -e "\n${BLUE}[STEP]${NC} $1"
-}
+print_step()    { echo -e "\n${BLUE}[STEP]${NC} $1"; }
+print_success() { echo -e "${GREEN}[OK]${NC} $1"; }
+print_warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
+print_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
-print_success() {
-    echo -e "${GREEN}[OK]${NC} $1"
-}
+APP_DIR="/opt/einvite"
 
-print_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Check if running as root
+# ── Checks ──────────────────────────────────────────────────────────
 check_root() {
     if [ "$EUID" -ne 0 ]; then
         print_error "Please run as root (sudo ./reinstall.sh)"
@@ -57,53 +52,41 @@ check_root() {
     fi
 }
 
-# Detect OS
+check_source() {
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ ! -f "$SCRIPT_DIR/package.json" ]; then
+        print_error "package.json not found in $SCRIPT_DIR"
+        print_error "Run this script from the extracted einvite directory."
+        exit 1
+    fi
+    print_success "Source verified at $SCRIPT_DIR"
+}
+
 detect_os() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         OS=$ID
         OS_VERSION=$VERSION_ID
     else
-        print_error "Cannot detect OS. This script supports Ubuntu/Debian."
+        print_error "Cannot detect OS. Supports Ubuntu/Debian."
         exit 1
     fi
     print_success "Detected OS: $OS $OS_VERSION"
 }
 
-# Stop existing services
-stop_services() {
-    print_step "Stopping existing services..."
-
-    # Stop PM2 process if running
+# ── Phase 1: Stop old services ──────────────────────────────────────
+stop_old_services() {
+    print_step "Stopping old services..."
     if command -v pm2 &> /dev/null; then
         pm2 stop einvite > /dev/null 2>&1 || true
         pm2 delete einvite > /dev/null 2>&1 || true
         print_success "PM2 process stopped"
-    fi
-}
-
-# Clean old application
-clean_old_app() {
-    print_step "Cleaning old application..."
-
-    # Remove old app directory contents but keep uploads
-    if [ -d "$APP_DIR" ]; then
-        # Backup uploads if they exist
-        if [ -d "$APP_DIR/public/uploads" ]; then
-            BACKUP_DIR=$(mktemp -d)
-            cp -a "$APP_DIR/public/uploads" "$BACKUP_DIR/" 2>/dev/null || true
-            print_success "Uploads backed up to $BACKUP_DIR"
-        fi
-
-        # Remove old app
-        rm -rf "$APP_DIR"
-        print_success "Old application removed"
     else
-        print_warn "No existing installation at $APP_DIR"
+        print_warn "PM2 not found (will be installed)"
     fi
 }
 
-# Update system
+# ── Phase 2: Ensure prerequisites ───────────────────────────────────
 update_system() {
     print_step "Updating system packages..."
     apt-get update -yqq > /dev/null 2>&1
@@ -111,26 +94,29 @@ update_system() {
     print_success "System updated"
 }
 
-# Install Node.js LTS
+install_tools() {
+    print_step "Installing build tools..."
+    apt-get install -yqq git curl wget unzip build-essential > /dev/null 2>&1
+    print_success "Tools installed"
+}
+
 install_nodejs() {
-    print_step "Checking Node.js..."
+    print_step "Installing Node.js LTS..."
     if command -v node &> /dev/null; then
-        NODE_VER=$(node -v)
-        print_success "Node.js available: $NODE_VER"
+        print_success "Node.js already installed: $(node -v)"
     else
         curl -fsSL https://deb.nodesource.com/setup_lts.x 2>/dev/null | bash - > /dev/null 2>&1
         apt-get install -yqq nodejs > /dev/null 2>&1
         print_success "Node.js installed: $(node -v)"
     fi
     npm install -g npm@latest > /dev/null 2>&1 || true
+    print_success "npm version: $(npm -v)"
 }
 
-# Ensure MySQL is installed and running
-ensure_mysql() {
-    print_step "Checking MySQL..."
+install_mysql() {
+    print_step "Installing MySQL..."
     if command -v mysql &> /dev/null; then
-        print_success "MySQL available"
-        # Ensure it's running
+        print_success "MySQL already installed"
         systemctl start mysql > /dev/null 2>&1 || true
     else
         apt-get install -yqq mysql-server > /dev/null 2>&1
@@ -140,35 +126,10 @@ ensure_mysql() {
     fi
 }
 
-# Reset database — drop and recreate to avoid all conflicts
-reset_database() {
-    print_step "Resetting database..."
-
-    # Generate new random password
-    DB_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 20)
-
-    # Drop existing database and user completely, then recreate
-    # This avoids: user already exists, password mismatch, stale tables
-    mysql -e "DROP DATABASE IF EXISTS einvite;" 2>/dev/null || true
-    mysql -e "DROP USER IF EXISTS 'einvite'@'localhost';" 2>/dev/null || true
-    mysql -e "FLUSH PRIVILEGES;" 2>/dev/null || true
-
-    # Create fresh
-    mysql -e "CREATE DATABASE einvite CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-    mysql -e "CREATE USER 'einvite'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';"
-    mysql -e "GRANT ALL PRIVILEGES ON einvite.* TO 'einvite'@'localhost';"
-    mysql -e "FLUSH PRIVILEGES;"
-
-    print_success "Database 'einvite' recreated"
-
-    echo "$DB_PASSWORD" > /tmp/.einvite_db_password
-}
-
-# Ensure Nginx is installed
-ensure_nginx() {
-    print_step "Checking Nginx..."
+install_nginx() {
+    print_step "Installing Nginx..."
     if command -v nginx &> /dev/null; then
-        print_success "Nginx available"
+        print_success "Nginx already installed"
     else
         apt-get install -yqq nginx > /dev/null 2>&1
         systemctl start nginx
@@ -177,71 +138,47 @@ ensure_nginx() {
     fi
 }
 
-# Ensure PM2 is installed
-ensure_pm2() {
-    print_step "Checking PM2..."
+install_pm2() {
+    print_step "Installing PM2..."
     if command -v pm2 &> /dev/null; then
-        print_success "PM2 available"
+        print_success "PM2 already installed"
     else
         npm install -g pm2 > /dev/null 2>&1
         print_success "PM2 installed"
     fi
 }
 
-# Ensure build tools
-ensure_tools() {
-    print_step "Checking build tools..."
-    apt-get install -yqq git curl wget unzip build-essential > /dev/null 2>&1
-    print_success "Tools ready"
+# ── Phase 3: Fresh database ─────────────────────────────────────────
+reset_database() {
+    print_step "Resetting database (drop + recreate)..."
+
+    DB_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 20)
+
+    mysql -e "DROP DATABASE IF EXISTS einvite;" 2>/dev/null || true
+    mysql -e "DROP USER IF EXISTS 'einvite'@'localhost';" 2>/dev/null || true
+    mysql -e "FLUSH PRIVILEGES;" 2>/dev/null || true
+
+    mysql -e "CREATE DATABASE einvite CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    mysql -e "CREATE USER 'einvite'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';"
+    mysql -e "GRANT ALL PRIVILEGES ON einvite.* TO 'einvite'@'localhost';"
+    mysql -e "FLUSH PRIVILEGES;"
+
+    echo "$DB_PASSWORD" > /tmp/.einvite_db_password
+    print_success "Database 'einvite' recreated with new credentials"
 }
 
-# Deploy fresh application
+# ── Phase 4: Deploy application ─────────────────────────────────────
 deploy_application() {
-    print_step "Deploying fresh application..."
-
-    # SCRIPT_DIR is resolved early in main() before clean_old_app deletes anything
-
-    # Auto-detect source: check script dir first, then existing install
-    SOURCE_DIR="$SCRIPT_DIR"
-    if [ ! -f "$SOURCE_DIR/package.json" ]; then
-        # Script was run from outside the source directory
-        # Check if there's an existing install we can use as source
-        if [ -f "$APP_DIR/package.json" ]; then
-            SOURCE_DIR="$APP_DIR"
-            print_warn "Using existing install at $APP_DIR as source"
-        else
-            print_error "Cannot find application source files."
-            print_error "Either run this script from the e-invite directory, or ensure $APP_DIR exists."
-            exit 1
-        fi
-    fi
-
-    # Copy fresh source to app directory
-    mkdir -p "$APP_DIR"
-
-    REAL_SOURCE_DIR="$(readlink -f "$SOURCE_DIR")"
-    REAL_APP_DIR="$(readlink -f "$APP_DIR" 2>/dev/null || echo "$APP_DIR")"
-
-    if [ "$REAL_SOURCE_DIR" = "$REAL_APP_DIR" ]; then
-        print_success "Already running from $APP_DIR, skipping copy"
-    else
-        if command -v rsync &> /dev/null; then
-            rsync -a --exclude='node_modules' --exclude='.next' --exclude='.git' "$SOURCE_DIR/" "$APP_DIR/"
-        else
-            cp -a "$SOURCE_DIR"/. "$APP_DIR/"
-        fi
-        print_success "Application copied to $APP_DIR"
-    fi
-
+    print_step "Deploying application..."
     cd "$APP_DIR"
 
     # Read DB password
     DB_PASSWORD=$(cat /tmp/.einvite_db_password 2>/dev/null || echo "password")
 
-    # Generate new secrets
+    # Generate fresh secrets
     NEXTAUTH_SECRET=$(openssl rand -base64 32)
 
-    # Create fresh .env file
+    # Create .env
     cat > .env << EOF
 # Database
 DATABASE_URL="mysql://einvite:${DB_PASSWORD}@localhost:3306/einvite"
@@ -258,23 +195,20 @@ GEMINI_MODEL="gemini-3.1-flash-lite-preview"
 NODE_ENV=production
 PORT=3000
 EOF
-
     print_success ".env file created"
 
-    # Clean install dependencies
+    # Clean install
     print_step "Installing Node.js dependencies..."
-    rm -rf node_modules package-lock.json > /dev/null 2>&1
+    rm -rf node_modules package-lock.json .next > /dev/null 2>&1
     npm install --production=false > /dev/null 2>&1
 
-    # Generate Prisma client
+    # Prisma
     print_step "Generating Prisma client..."
     npx prisma generate > /dev/null 2>&1
 
-    # Push database schema (fresh DB, no conflicts)
     print_step "Pushing database schema..."
     npx prisma db push > /dev/null 2>&1
 
-    # Seed database
     print_step "Seeding database..."
     if npx tsx prisma/seed.ts 2>&1; then
         print_success "Database seeded (admin@einvite.com / admin123)"
@@ -282,24 +216,25 @@ EOF
         print_error "Seed failed! Run manually: cd $APP_DIR && npx tsx prisma/seed.ts"
     fi
 
-    # Build application
+    # Build
     print_step "Building Next.js application..."
     npm run build > /dev/null 2>&1
-
     print_success "Application built successfully"
 
-    # Restore uploads if backed up
-    if [ -n "${BACKUP_DIR:-}" ] && [ -d "$BACKUP_DIR/uploads" ]; then
-        cp -a "$BACKUP_DIR/uploads/." "$APP_DIR/public/uploads/" 2>/dev/null || true
-        rm -rf "$BACKUP_DIR"
-        print_success "Uploads restored"
-    fi
-
-    # Cleanup temp file
+    # Cleanup
     rm -f /tmp/.einvite_db_password
 }
 
-# Configure Nginx
+# ── Phase 5: Create directories ─────────────────────────────────────
+create_directories() {
+    print_step "Creating upload directories..."
+    mkdir -p "$APP_DIR/public/uploads/photos"
+    mkdir -p "$APP_DIR/public/uploads/music"
+    chmod -R 755 "$APP_DIR/public/uploads"
+    print_success "Upload directories created"
+}
+
+# ── Phase 6: Configure Nginx ────────────────────────────────────────
 configure_nginx() {
     print_step "Configuring Nginx reverse proxy..."
 
@@ -310,7 +245,6 @@ server {
 
     client_max_body_size 50M;
 
-    # Use upstream proxy proto (Cloudflare) if present, otherwise use $scheme (certbot)
     set $forwarded_proto $scheme;
     if ($http_x_forwarded_proto) {
         set $forwarded_proto $http_x_forwarded_proto;
@@ -343,10 +277,9 @@ NGINX
     print_success "Nginx configured"
 }
 
-# Setup PM2 process
+# ── Phase 7: Start PM2 ──────────────────────────────────────────────
 setup_pm2() {
-    print_step "Setting up PM2 process..."
-
+    print_step "Starting PM2 process..."
     cd "$APP_DIR"
 
     cat > ecosystem.config.js << 'PM2'
@@ -372,14 +305,12 @@ PM2
     pm2 start ecosystem.config.js > /dev/null 2>&1
     pm2 save > /dev/null 2>&1
     pm2 startup systemd -u root --hp /root > /dev/null 2>&1 || true
-
     print_success "PM2 process started"
 }
 
-# Setup firewall
+# ── Phase 8: Firewall ───────────────────────────────────────────────
 setup_firewall() {
     print_step "Configuring firewall..."
-
     if command -v ufw &> /dev/null; then
         ufw allow 22/tcp > /dev/null 2>&1
         ufw allow 80/tcp > /dev/null 2>&1
@@ -391,21 +322,12 @@ setup_firewall() {
     fi
 }
 
-# Create upload directories
-create_directories() {
-    print_step "Creating upload directories..."
-    mkdir -p "$APP_DIR/public/uploads/photos"
-    mkdir -p "$APP_DIR/public/uploads/music"
-    chmod -R 755 "$APP_DIR/public/uploads"
-    print_success "Upload directories created"
-}
-
-# Print summary
+# ── Summary ─────────────────────────────────────────────────────────
 print_summary() {
     echo ""
     echo -e "${GREEN}"
     echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║          E-Invite Reinstallation Complete!              ║"
+    echo "║       E-Invite Reinstallation Complete!                 ║"
     echo "╠══════════════════════════════════════════════════════════╣"
     echo "║                                                          ║"
     echo "║  Domain:      invite.minthantthaw.me                     ║"
@@ -417,45 +339,39 @@ print_summary() {
     echo "║  PM2 Logs:    pm2 logs einvite                           ║"
     echo "║  Restart:     pm2 restart einvite                        ║"
     echo "║                                                          ║"
-    echo "║  NOTE: Previous uploads were preserved if they existed.  ║"
-    echo "║  Database was recreated fresh (admin password: admin123) ║"
+    echo "║  IMPORTANT: Change admin password after first login!     ║"
+    echo "║  Database was recreated fresh (all data reset).          ║"
     echo "║                                                          ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
-# Main execution
+# ── Main ────────────────────────────────────────────────────────────
 main() {
     print_banner
     check_root
+    check_source
     detect_os
 
-    # Resolve script directory NOW before clean_old_app deletes it
-    # If the script runs from /opt/einvite and we delete that dir, pwd fails later
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # Phase 1: Stop old services
+    stop_old_services
 
-    # Phase 1: Tear down running services
-    stop_services
-
-    # Phase 2: Clean old installation
-    clean_old_app
-
-    # Phase 3: Ensure prerequisites
+    # Phase 2: Install prerequisites
     update_system
-    ensure_tools
+    install_tools
     install_nodejs
-    ensure_mysql
-    ensure_nginx
-    ensure_pm2
+    install_mysql
+    install_nginx
+    install_pm2
 
-    # Phase 4: Fresh database (drop + recreate = no conflicts)
+    # Phase 3: Fresh database
     reset_database
 
-    # Phase 5: Deploy fresh app
+    # Phase 4: Deploy app (npm install, prisma, build)
     deploy_application
     create_directories
 
-    # Phase 6: Configure services
+    # Phase 5: Configure services
     configure_nginx
     setup_pm2
     setup_firewall
