@@ -201,24 +201,34 @@ deploy_application() {
 
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    if [ ! -f "$SCRIPT_DIR/package.json" ]; then
-        print_error "package.json not found. Run this script from the e-invite directory."
-        exit 1
+    # Auto-detect source: check script dir first, then existing install
+    SOURCE_DIR="$SCRIPT_DIR"
+    if [ ! -f "$SOURCE_DIR/package.json" ]; then
+        # Script was run from outside the source directory
+        # Check if there's an existing install we can use as source
+        if [ -f "$APP_DIR/package.json" ]; then
+            SOURCE_DIR="$APP_DIR"
+            print_warn "Using existing install at $APP_DIR as source"
+        else
+            print_error "Cannot find application source files."
+            print_error "Either run this script from the e-invite directory, or ensure $APP_DIR exists."
+            exit 1
+        fi
     fi
 
     # Copy fresh source to app directory
     mkdir -p "$APP_DIR"
 
-    REAL_SCRIPT_DIR="$(readlink -f "$SCRIPT_DIR")"
+    REAL_SOURCE_DIR="$(readlink -f "$SOURCE_DIR")"
     REAL_APP_DIR="$(readlink -f "$APP_DIR" 2>/dev/null || echo "$APP_DIR")"
 
-    if [ "$REAL_SCRIPT_DIR" = "$REAL_APP_DIR" ]; then
+    if [ "$REAL_SOURCE_DIR" = "$REAL_APP_DIR" ]; then
         print_success "Already running from $APP_DIR, skipping copy"
     else
         if command -v rsync &> /dev/null; then
-            rsync -a --exclude='node_modules' --exclude='.next' --exclude='.git' "$SCRIPT_DIR/" "$APP_DIR/"
+            rsync -a --exclude='node_modules' --exclude='.next' --exclude='.git' "$SOURCE_DIR/" "$APP_DIR/"
         else
-            cp -a "$SCRIPT_DIR"/. "$APP_DIR/"
+            cp -a "$SOURCE_DIR"/. "$APP_DIR/"
         fi
         print_success "Application copied to $APP_DIR"
     fi

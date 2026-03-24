@@ -2,92 +2,122 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const ENVELOPE_PROMPT = `You are a wedding invitation ENVELOPE page designer. You design the envelope screen that guests see BEFORE opening the invitation.
+// Comprehensive mode: AI can rewrite entire page structure, generate custom CSS/JS/animations
+const COMPREHENSIVE_ENVELOPE_PROMPT = `You are an expert wedding invitation ENVELOPE designer. You can COMPLETELY redesign the envelope page from scratch — colors, layout effects, animations, custom CSS, and custom JavaScript.
 
-## Envelope Page Elements
-- **Background**: Dark radial gradient behind the envelope (envelopeBgColor)
-- **Envelope Paper**: Cream/gold gradient paper (envelopePaperColor)
-- **Text on Paper**: Couple names, greeting text (envelopeTextColor)
-- **Decorative Gold Border**: Always gold (#c9a96e), not configurable
-- **"LOVE" Stamp**: Gold colored stamp in top-right
-- **"Open Invitation" Button**: Uses primaryColor
+## Current Envelope Elements You Control
+- **Background**: Dark radial gradient behind envelope (envelopeBgColor)
+- **Envelope Paper**: Gradient paper (envelopePaperColor)
+- **Text**: Couple names, greeting (envelopeTextColor)
+- **Button**: "Open Invitation" uses primaryColor
 - **Wax Seal**: Uses primaryColor
-- **Font**: primaryFont applies to all text
-- **Greeting**: Shows "Dear Honourable Guest" or "Dear [Name]" for personalized links
+- **Font**: primaryFont for all text
+- **Decorative elements**: Gold accent borders, LOVE stamp, particles
+- **Custom CSS**: You can inject CSS to dramatically alter the envelope appearance — gradients, backgrounds, borders, text effects, glow, shadows
+- **Custom HTML**: You can inject custom HTML after the envelope for extra animated elements (floating petals, sparkles, decorative frames)
 
-## JSON to return (ALL fields required)
+## JSON to return (ALL fields)
 {
-  "primaryFont": "Font name from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, EB Garamond, Montserrat, Raleway, Josefin Sans, Poppins, Quicksand",
-  "primaryColor": "#hex - Open Invitation button and wax seal color",
-  "accentColor": "#hex - decorative gold accent color",
-  "envelopeBgColor": "#hex - dark background behind envelope",
-  "envelopePaperColor": "#hex - light/warm envelope paper color",
-  "envelopeTextColor": "#hex - dark text on the envelope paper"
+  "primaryFont": "Font from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, EB Garamond, Montserrat, Raleway, Josefin Sans, Poppins, Quicksand",
+  "primaryColor": "#hex - button and seal color",
+  "accentColor": "#hex - decorative accent",
+  "envelopeBgColor": "#hex - dark bg behind envelope",
+  "envelopePaperColor": "#hex - light envelope paper",
+  "envelopeTextColor": "#hex - dark text on paper",
+  "customCss": "CSS string - can include @keyframes, gradients, text-shadow, box-shadow, backdrop-filter, transform effects. Target: .fixed.inset-0 (envelope container), h1 (names), button (open btn). Be creative with animations!",
+  "customHtml": "HTML string - optional extra animated elements like floating SVG petals, sparkle divs with CSS animations, decorative borders. Keep it lightweight."
 }
 
-## Presets
-- Classic: Great Vibes, primary:#ed5566, accent:#c9a96e, envBg:#1a0a0a, envPaper:#fef5e7, envText:#3a2a1a
-- Romantic: Dancing Script, primary:#e8a0b4, accent:#d4a574, envBg:#1a0812, envPaper:#fff0f5, envText:#4a2a3a
-- Royal: Cinzel, primary:#c9a96e, accent:#d4af37, envBg:#0a0814, envPaper:#fdf8ef, envText:#2a1a0a
-- Modern: Montserrat, primary:#2c3e50, accent:#bdc3c7, envBg:#f5f5f5, envPaper:#ffffff, envText:#2c3e50
-- Vintage: Libre Baskerville, primary:#cd853f, accent:#d4a574, envBg:#1a100a, envPaper:#f5ebe0, envText:#3a2a1a
-
 ## RULES
-1. Return ONLY valid JSON. No markdown, no backticks, no explanation
-2. All colors must be #RRGGBB hex codes
-3. envelopeBgColor should be DARK; envelopePaperColor should be LIGHT/warm
-4. envelopeTextColor must contrast well with envelopePaperColor
-5. Only change what the user asks; keep other values the same`;
+1. Return ONLY valid JSON — no markdown, no backticks
+2. All colors: #RRGGBB hex
+3. Be CREATIVE — use CSS animations, gradients, text-shadow, backdrop-filter
+4. customCss can include @keyframes for floating particles, shimmer effects, etc.
+5. customHtml should be self-contained (inline styles or classes defined in customCss)
+6. envelopeBgColor=dark, envelopePaperColor=light
+7. Only change what user asks, keep rest same`;
 
-const INVITATION_PROMPT = `You are a wedding INVITATION PAGE designer. You design the main invitation page that guests see AFTER opening the envelope.
+const COMPREHENSIVE_INVITATION_PROMPT = `You are an expert wedding invitation PAGE designer. You can COMPLETELY redesign the entire invitation page from scratch — colors, fonts, layout, animations, custom CSS, custom JavaScript, photo placement, text overlays on images, and dynamic elements.
 
-## Invitation Page Sections (top to bottom)
-1. **Hero**: Full-screen with couple names in primaryFont, title text, wedding date. Background uses backgroundColor
-2. **Wedding Details**: Couple photos (circular), names in primaryFont, date/time display, venue name, address. Accent color (#c9a96e-style) used for decorative elements, dividers
-3. **Countdown Timer**: Days/hours/minutes/seconds countdown to wedding. Uses text and accent colors
-4. **Photo Gallery**: Grid of wedding photos with lightbox (toggleable via enableGallery)
-5. **RSVP Form**: Name input, Accept/Decline radio, guest count, message textarea. Button uses primaryColor
-6. **Footer**: Couple names in primaryFont
-7. **Message Wall**: Fixed bottom-left ticker showing guest blessings. "Send Blessing" button
+## Page Sections (top to bottom)
+1. **Hero** — Full viewport. Couple names in primaryFont, title, wedding date. Background uses backgroundColor. You can add background images, gradient overlays, parallax effects via customCss.
+2. **Wedding Details** — Circular couple photos, names, date/time columns, venue. Uses accentColor for dividers/ornaments.
+3. **Countdown Timer** — Days/hours/minutes/seconds. Uses accent and text colors.
+4. **Photo Gallery** — Grid of up to 6 uploaded photos. You can reference photos by index: photo[0], photo[1], etc.
+5. **RSVP Form** — Name, Accept/Decline, guest count, message. Button uses primaryColor.
+6. **Message Wall** — Floating bottom-left ticker + Send Blessing button.
+7. **Footer** — Couple names.
 
-## JSON to return (ALL fields required)
+## Photo References
+Gallery photos are indexed 0-5. You can use them in customCss as backgrounds:
+- \`.hero-bg { background-image: url(PHOTO_0); }\` → replaced with actual photo URL
+- \`.section-bg { background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(PHOTO_1); }\`
+- Photos can be used as section backgrounds with text overlays
+
+## JSON to return (ALL fields)
 {
-  "primaryFont": "Font name from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, EB Garamond, Montserrat, Raleway, Josefin Sans, Poppins, Quicksand",
-  "backgroundColor": "#hex - main page background",
-  "primaryColor": "#hex - buttons (RSVP submit), interactive elements",
-  "accentColor": "#hex - decorative dividers, ornaments, gold accents",
-  "textColor": "#hex - body text color on main page",
-  "backgroundImage": "URL or empty string",
+  "primaryFont": "Font name",
+  "backgroundColor": "#hex",
+  "primaryColor": "#hex - buttons, interactive",
+  "accentColor": "#hex - decorative, dividers, gold",
+  "textColor": "#hex - body text",
+  "backgroundImage": "URL or empty or PHOTO_N reference",
   "enableGallery": true,
   "enableRsvp": true,
   "enableCountdown": true,
   "enableMessages": true,
-  "customCss": "additional CSS rules or empty string"
+  "customCss": "COMPREHENSIVE CSS — include @keyframes for animations, section backgrounds using PHOTO_N, text-shadow, gradients, backdrop-filter, transform, transition effects. Make it stunning!",
+  "customHtml": "Extra HTML — floating elements, decorative SVGs, animated borders. Can use PHOTO_N in img src.",
+  "galleryOrder": [0,1,2,3,4,5]
 }
 
-## Presets
-- Classic Elegant: Great Vibes, bg:#0d0505, primary:#ed5566, accent:#c9a96e, text:#ffffff
-- Romantic Blush: Dancing Script, bg:#1a0a10, primary:#e8a0b4, accent:#d4a574, text:#fff5f5
-- Garden Rustic: Sacramento, bg:#0f1a0d, primary:#8fbc8f, accent:#c9a96e, text:#f0ead6
-- Modern Minimalist: Montserrat, bg:#ffffff, primary:#2c3e50, accent:#bdc3c7, text:#2c3e50
-- Royal Gold: Cinzel, bg:#0a0a1a, primary:#c9a96e, accent:#d4af37, text:#f5f0e1
-- Beach Tropical: Quicksand, bg:#0a1628, primary:#48c9b0, accent:#f0b27a, text:#ecf0f1
-
-## Custom CSS Selectors
-- section: Major content blocks
-- h1, h2, h3: Headings
-- .min-h-dvh: Hero section (full viewport)
-- Use CSS for borders, gradients, shadows, animations
-
-## Gallery Arrangement
-If user asks to reorder gallery images, add "galleryOrder": [0-based indices] to JSON.
+## Creative CSS Examples
+- Parallax hero: \`.min-h-dvh { background-attachment: fixed; background-size: cover; }\`
+- Photo as section bg with text overlay: \`section:nth-child(2) { background: linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.6)), url(PHOTO_0); background-size: cover; }\`
+- Animated gradient: \`@keyframes gradient { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }\`
+- Floating particles: inject divs in customHtml with CSS @keyframes float animation
+- Gold shimmer text: \`h1 { background: linear-gradient(to right, #c9a96e, #f5e6d0, #c9a96e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shimmer 3s infinite; }\`
 
 ## RULES
-1. Return ONLY valid JSON. No markdown, no backticks, no explanation
-2. All colors must be #RRGGBB hex codes
-3. textColor must have good contrast against backgroundColor
-4. Only change what the user asks; keep other values the same
-5. For theme changes: update ALL colors + font for cohesion`;
+1. Return ONLY valid JSON — no markdown, no backticks
+2. All colors: #RRGGBB hex
+3. Be BOLD and CREATIVE — animations, gradients, parallax, text effects
+4. Use PHOTO_N (N=0-5) to reference gallery photos in CSS/HTML — they get replaced with actual URLs
+5. customCss should not break the responsive layout
+6. For theme overhauls: change ALL colors + font + customCss together
+7. customHtml for extra floating/animated elements (keep lightweight)`;
+
+// Simple mode: only fonts and colors, no custom CSS/HTML/JS
+const SIMPLE_ENVELOPE_PROMPT = `You are a wedding envelope color/font designer. You ONLY change colors and fonts — nothing else.
+
+## JSON to return
+{
+  "primaryFont": "Font name from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, Montserrat, Raleway, Poppins, Quicksand",
+  "primaryColor": "#hex",
+  "accentColor": "#hex",
+  "envelopeBgColor": "#hex - dark",
+  "envelopePaperColor": "#hex - light",
+  "envelopeTextColor": "#hex - dark text on paper"
+}
+
+RULES: Return ONLY JSON. Only colors and font. No customCss, no customHtml.`;
+
+const SIMPLE_INVITATION_PROMPT = `You are a wedding invitation color/font designer. You ONLY change colors, fonts, and section toggles — nothing else.
+
+## JSON to return
+{
+  "primaryFont": "Font name from: Great Vibes, Dancing Script, Sacramento, Alex Brush, Satisfy, Tangerine, Parisienne, Allura, Playfair Display, Cormorant Garamond, Lora, Cinzel, Libre Baskerville, Montserrat, Raleway, Poppins, Quicksand",
+  "backgroundColor": "#hex",
+  "primaryColor": "#hex",
+  "accentColor": "#hex",
+  "textColor": "#hex",
+  "enableGallery": true,
+  "enableRsvp": true,
+  "enableCountdown": true,
+  "enableMessages": true
+}
+
+RULES: Return ONLY JSON. Only colors, font, and booleans. No customCss, no customHtml, no backgroundImage.`;
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -97,13 +127,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { prompt, invitationId, currentConfig, galleryPhotos, mode } = body;
+    const { prompt, invitationId, currentConfig, galleryPhotos, mode, comprehensive } = body;
 
     if (!prompt || !invitationId) {
       return NextResponse.json({ error: "Missing prompt or invitationId" }, { status: 400 });
     }
 
-    // Get Gemini API key from settings (stored in plain text)
     const apiKeySetting = await prisma.setting.findUnique({ where: { key: "geminiApiKey" } });
     const modelSetting = await prisma.setting.findUnique({ where: { key: "geminiModel" } });
 
@@ -112,18 +141,23 @@ export async function POST(request: NextRequest) {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Gemini API key not configured. Go to Settings > Gemini AI Integration, enter your key, and click Save All Settings." },
+        { error: "Gemini API key not configured. Go to Settings to add it." },
         { status: 400 }
       );
     }
 
-    // Select prompt based on mode
-    const systemPrompt = mode === "envelope" ? ENVELOPE_PROMPT : INVITATION_PROMPT;
+    // Select prompt based on mode + comprehensive toggle
+    let systemPrompt: string;
+    if (mode === "envelope") {
+      systemPrompt = comprehensive ? COMPREHENSIVE_ENVELOPE_PROMPT : SIMPLE_ENVELOPE_PROMPT;
+    } else {
+      systemPrompt = comprehensive ? COMPREHENSIVE_INVITATION_PROMPT : SIMPLE_INVITATION_PROMPT;
+    }
 
     // Build context
     let context = `\n\nCurrent config:\n${JSON.stringify(currentConfig, null, 2)}`;
-    if (mode !== "envelope" && galleryPhotos?.length > 0) {
-      context += `\n\nGallery has ${galleryPhotos.length} photos. Include "galleryOrder" if user asks to reorder.`;
+    if (galleryPhotos?.length > 0) {
+      context += `\n\nGallery photos (use PHOTO_N to reference):\n${galleryPhotos.map((p: string, i: number) => `PHOTO_${i} = ${p}`).join("\n")}`;
     }
 
     const fullPrompt = systemPrompt + context + "\n\nUser request: " + prompt;
@@ -138,7 +172,6 @@ export async function POST(request: NextRequest) {
 
     const text = response.text || "";
 
-    // Parse JSON
     let config: Record<string, unknown>;
     let galleryOrder: number[] | undefined;
 
@@ -147,10 +180,22 @@ export async function POST(request: NextRequest) {
       if (!jsonMatch) throw new Error("No JSON in response");
       config = JSON.parse(jsonMatch[0]);
 
-      // Extract galleryOrder
       if (Array.isArray(config.galleryOrder)) {
         galleryOrder = config.galleryOrder as number[];
         delete config.galleryOrder;
+      }
+
+      // Replace PHOTO_N references with actual URLs in customCss and customHtml
+      if (galleryPhotos?.length > 0) {
+        for (const field of ["customCss", "customHtml", "backgroundImage"]) {
+          if (typeof config[field] === "string") {
+            let val = config[field] as string;
+            for (let i = 0; i < galleryPhotos.length; i++) {
+              val = val.replace(new RegExp(`PHOTO_${i}`, "g"), galleryPhotos[i]);
+            }
+            config[field] = val;
+          }
+        }
       }
 
       // Validate hex colors
@@ -162,24 +207,24 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Validate font
       if (typeof config.primaryFont !== "string" || !config.primaryFont) {
         config.primaryFont = currentConfig?.primaryFont;
       }
 
-      // Validate booleans
       for (const f of ["enableGallery", "enableRsvp", "enableCountdown", "enableMessages"]) {
         if (config[f] !== undefined && typeof config[f] !== "boolean") {
           config[f] = (currentConfig as Record<string, unknown>)?.[f] ?? true;
         }
       }
 
-      // Validate strings
       if (config.backgroundImage !== undefined && typeof config.backgroundImage !== "string") {
         config.backgroundImage = currentConfig?.backgroundImage || "";
       }
       if (config.customCss !== undefined && typeof config.customCss !== "string") {
         config.customCss = currentConfig?.customCss || "";
+      }
+      if (config.customHtml !== undefined && typeof config.customHtml !== "string") {
+        config.customHtml = currentConfig?.customHtml || "";
       }
 
       // Remove undefined
@@ -188,8 +233,8 @@ export async function POST(request: NextRequest) {
       }
     } catch {
       return NextResponse.json({
-        error: "AI returned an invalid response. Try rephrasing your request.",
-        rawResponse: text.slice(0, 300),
+        error: "AI returned invalid response. Try rephrasing your request.",
+        rawResponse: text.slice(0, 500),
       }, { status: 422 });
     }
 
@@ -203,30 +248,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Build change summary
+    // Build summary
     const cur = (currentConfig || {}) as Record<string, unknown>;
     const changes: string[] = [];
-    const labels: Record<string, string> = {
-      primaryFont: "Font", backgroundColor: "Background", primaryColor: "Primary",
-      accentColor: "Accent", textColor: "Text", envelopeBgColor: "Envelope bg",
-      envelopePaperColor: "Envelope paper", envelopeTextColor: "Envelope text",
-      customCss: "Custom CSS",
-    };
-    for (const [k, label] of Object.entries(labels)) {
-      if (config[k] && config[k] !== cur[k]) {
-        changes.push(k === "customCss" ? "Custom CSS updated" : `${label} → ${config[k]}`);
-      }
-    }
+    if (config.primaryFont && config.primaryFont !== cur.primaryFont) changes.push(`Font → ${config.primaryFont}`);
+    if (config.backgroundColor && config.backgroundColor !== cur.backgroundColor) changes.push(`Background → ${config.backgroundColor}`);
+    if (config.primaryColor && config.primaryColor !== cur.primaryColor) changes.push(`Primary → ${config.primaryColor}`);
+    if (config.accentColor && config.accentColor !== cur.accentColor) changes.push(`Accent → ${config.accentColor}`);
+    if (config.textColor && config.textColor !== cur.textColor) changes.push(`Text → ${config.textColor}`);
+    if (config.envelopeBgColor && config.envelopeBgColor !== cur.envelopeBgColor) changes.push(`Envelope bg → ${config.envelopeBgColor}`);
+    if (config.customCss && config.customCss !== cur.customCss) changes.push("Custom CSS" + (comprehensive ? " (with animations)" : ""));
+    if (config.customHtml && config.customHtml !== cur.customHtml) changes.push("Custom HTML elements added");
     if (galleryOrder) changes.push("Gallery reordered");
 
     const message = changes.length > 0
-      ? `Changes:\n${changes.map(c => `• ${c}`).join("\n")}\n\nClick "Apply Changes" to preview.`
-      : "Design ready. Click \"Apply Changes\" to apply.";
+      ? `${comprehensive ? "Comprehensive" : "Style"} changes:\n${changes.map(c => `• ${c}`).join("\n")}\n\nClick "Apply" to preview.`
+      : "Design ready. Click \"Apply\" to see changes.";
 
     return NextResponse.json({ config, galleryOrder, message });
   } catch (error) {
     console.error("Designer generate error:", error);
     const msg = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: `Design generation failed: ${msg}` }, { status: 500 });
+    return NextResponse.json({ error: `Design failed: ${msg}` }, { status: 500 });
   }
 }
