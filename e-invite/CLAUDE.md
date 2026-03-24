@@ -233,7 +233,6 @@ cd /opt/einvite
 chmod +x reinstall.sh
 sudo ./reinstall.sh
 ```
-```
 
 `install.sh` will automatically:
 1. Install Node.js LTS, MySQL, Nginx, PM2
