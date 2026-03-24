@@ -3,100 +3,63 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 interface DesignConfig {
-  primaryFont: string;
-  backgroundColor: string;
-  primaryColor: string;
-  accentColor: string;
-  textColor: string;
-  backgroundImage: string;
-  envelopeBgColor?: string;
-  envelopePaperColor?: string;
-  envelopeTextColor?: string;
-  enableGallery: boolean;
-  enableRsvp: boolean;
-  enableCountdown: boolean;
-  enableMessages: boolean;
-  sectionOrder?: string[];
-  customCss: string;
-  customHtml?: string;
+  primaryFont: string; backgroundColor: string; primaryColor: string;
+  accentColor: string; textColor: string; backgroundImage: string;
+  envelopeBgColor?: string; envelopePaperColor?: string; envelopeTextColor?: string;
+  enableGallery: boolean; enableRsvp: boolean; enableCountdown: boolean; enableMessages: boolean;
+  sectionOrder?: string[]; customCss: string; customHtml?: string;
 }
 
 interface ChatMsg {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  config?: Partial<DesignConfig>;
-  galleryOrder?: number[];
+  id: string; role: "user" | "assistant" | "system";
+  content: string; config?: Partial<DesignConfig>; galleryOrder?: number[];
   images?: { url: string; description: string }[];
 }
 
 interface AIChatPanelProps {
-  mode: "envelope" | "invitation";
-  currentConfig: DesignConfig;
-  onApplyConfig: (config: DesignConfig) => void;
-  onReorderGallery?: (order: number[]) => void;
-  onAddPhoto?: (url: string) => void;
-  onAddMusic?: (url: string) => void;
-  invitationId: string;
-  galleryPhotos?: string[];
-  musicFile?: string | null;
+  mode: "envelope" | "invitation"; currentConfig: DesignConfig;
+  onApplyConfig: (config: DesignConfig) => void; onReorderGallery?: (order: number[]) => void;
+  onAddPhoto?: (url: string) => void; onAddMusic?: (url: string) => void;
+  invitationId: string; galleryPhotos?: string[]; musicFile?: string | null;
   comprehensive: boolean;
 }
 
-const SIMPLE_ENVELOPE = [
-  "Classic cream and gold colors",
-  "Romantic blush pink style",
-  "Royal dark with gold accents",
-  "Modern white and navy",
-];
+const SIMPLE_ENVELOPE = ["Classic cream and gold colors", "Romantic blush pink style", "Royal dark with gold accents", "Modern white and navy"];
 
 const COMP_ENVELOPE = [
-  "Complete Chinese wedding envelope — red and gold with lantern decorations",
-  "Elegant dark moody envelope with glowing wax seal and shimmer text",
-  "Vintage lace envelope with ornate floral frame and soft animations",
-  "Royal purple envelope with floating gold particles and gradient glow",
-  "Tropical beach theme with teal gradients and palm leaf decorations",
-  "Art deco envelope with geometric gold borders and animated lines",
-  "Rustic barn theme with warm wood tones and botanical overlays",
-  "Winter wonderland with snowfall animation and icy blue accents",
-  "Japanese sakura theme with cherry blossom petals floating",
-  "Indian Mandala theme with rich jewel tones and intricate patterns",
-];
-
-const SIMPLE_PAGE = [
-  "Elegant gold and dark theme",
-  "Romantic blush pink palette",
-  "Modern minimalist black and white",
-  "Rustic green garden theme",
+  "Complete Chinese wedding envelope — red, gold, lanterns, double happiness",
+  "Elegant dark moody envelope — glowing seal, shimmer text, particles",
+  "Vintage lace envelope — ornate floral frame, soft animations",
+  "Royal purple envelope — gold particles, gradient glow, regal stamp",
+  "Tropical beach — teal gradients, palm leaf overlays, sunset warmth",
+  "Art deco — geometric gold borders, animated lines, gatsby glamour",
+  "Rustic barn — warm wood tones, botanical overlays, earthy palette",
+  "Winter wonderland — snowfall animation, icy blue, frosted effects",
+  "Japanese sakura — cherry blossom petals floating, zen minimalism",
+  "Indian Mandala — jewel tones, intricate patterns, ornate gold borders",
 ];
 
 const COMP_PAGE = [
-  "Complete Chinese wedding — red and gold theme with lanterns, double happiness, silk patterns",
-  "Elegant garden party — soft greens, floral borders, parallax hero with photo overlay",
-  "Luxury black and gold — dark theme with shimmer text, animated gradient sections, glow effects",
-  "Beach tropical wedding — teal ocean gradients, palm decorations, sunset color palette",
-  "Royal Indian wedding — rich jewel tones, paisley patterns, mandala decorations, gold accents",
-  "Rustic barn wedding — warm earth tones, wood textures, botanical illustrations, soft animations",
-  "Modern minimalist — clean white space, subtle animations, elegant typography, photo-focused",
-  "Japanese sakura theme — cherry blossoms, soft pink gradients, zen minimalism, floating petals",
-  "Art deco gatsby — geometric gold, bold typography, vintage glamour, animated lines",
-  "Winter wonderland — icy blues, snowfall animations, frosted glass effects, silver accents",
+  "Complete Chinese wedding — red, gold, lanterns, silk patterns, double happiness decorations",
+  "Elegant garden party — soft greens, floral borders, parallax hero, botanical elements",
+  "Luxury black and gold — shimmer text, animated gradients, glow effects, opulent feel",
+  "Beach tropical — ocean gradients, palm trees, sunset palette, coral accents",
+  "Royal Indian wedding — jewel tones, paisley, mandala motifs, gold filigree",
+  "Rustic barn wedding — earth tones, wood textures, botanical illustrations, soft light",
+  "Modern minimalist — clean white, subtle animations, elegant typography, photo-focused",
+  "Japanese sakura theme — cherry blossoms, pink gradients, zen elements, floating petals",
+  "Art deco gatsby — geometric gold, bold type, vintage glamour, animated art-deco lines",
+  "Winter wonderland — icy blues, snowfall, frosted glass effects, silver and crystal",
 ];
+
+const SIMPLE_PAGE = ["Elegant gold and dark theme", "Romantic blush pink palette", "Modern minimalist black and white", "Rustic green garden theme"];
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const AUDIO_TYPES = ["audio/mpeg", "audio/mp3"];
 
 export default function AIChatPanel({
-  mode,
-  currentConfig,
-  onApplyConfig,
-  onReorderGallery,
-  onAddPhoto,
-  onAddMusic,
-  invitationId,
-  galleryPhotos,
-  musicFile,
-  comprehensive,
+  mode, currentConfig, onApplyConfig, onReorderGallery, onAddPhoto, onAddMusic,
+  invitationId, galleryPhotos, musicFile, comprehensive,
 }: AIChatPanelProps) {
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
@@ -104,7 +67,7 @@ export default function AIChatPanel({
   const [error, setError] = useState("");
   const [history, setHistory] = useState<DesignConfig[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [generatingImages, setGeneratingImages] = useState(false);
+  const [currentPhase, setCurrentPhase] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,16 +76,73 @@ export default function AIChatPanel({
     ? (comprehensive ? COMP_ENVELOPE : SIMPLE_ENVELOPE)
     : (comprehensive ? COMP_PAGE : SIMPLE_PAGE);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, loading]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, loading, currentPhase]);
   useEffect(() => {
-    if (taRef.current) {
-      taRef.current.style.height = "auto";
-      taRef.current.style.height = Math.min(taRef.current.scrollHeight, 120) + "px";
-    }
+    if (taRef.current) { taRef.current.style.height = "auto"; taRef.current.style.height = Math.min(taRef.current.scrollHeight, 120) + "px"; }
   }, [input]);
 
-  // Design generation (text/config only)
-  async function send(text: string) {
+  // ── DEEP DESIGN (comprehensive mode) ──────────────────────────
+  async function sendDeepDesign(text: string) {
+    const t = text.trim();
+    if (!t || loading) return;
+    setMsgs(p => [...p, { id: crypto.randomUUID(), role: "user", content: t }]);
+    setInput(""); setError(""); setLoading(true);
+
+    // Show phase updates
+    setCurrentPhase("🔍 Phase 1: Planning design elements...");
+    setMsgs(p => [...p, { id: crypto.randomUUID(), role: "system", content: "🔍 Phase 1/3 — Planning design elements and layout..." }]);
+
+    try {
+      const res = await fetch("/api/designer/deep-design", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: t, currentConfig, invitationId, galleryPhotos: galleryPhotos || [], mode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+
+      // Show phase logs
+      const phases = data.phases || [];
+      const planLogs = phases.filter((p: { phase: string }) => p.phase === "plan");
+      const imgLogs = phases.filter((p: { phase: string }) => p.phase === "images");
+      const designLogs = phases.filter((p: { phase: string }) => p.phase === "design");
+
+      if (planLogs.length > 0) {
+        const planTurns = planLogs.length - 1; // exclude the "Starting..." message
+        setMsgs(p => [...p, { id: crypto.randomUUID(), role: "system", content: `✅ Phase 1 complete — ${planTurns} planning iterations` }]);
+      }
+
+      if (imgLogs.length > 0) {
+        setCurrentPhase("🎨 Phase 2: Generating design element images...");
+        setMsgs(p => [...p, { id: crypto.randomUUID(), role: "system", content: `🎨 Phase 2/3 — Generated ${data.images?.length || 0} design element images` }]);
+      }
+
+      if (designLogs.length > 0) {
+        setCurrentPhase("🏗️ Phase 3: Assembling final design...");
+        setMsgs(p => [...p, { id: crypto.randomUUID(), role: "system", content: "🏗️ Phase 3/3 — Assembled complete design with all elements" }]);
+      }
+
+      // Add generated images to gallery automatically
+      if (data.images?.length > 0 && onAddPhoto) {
+        for (const img of data.images) onAddPhoto(img.url);
+      }
+
+      // Show final result
+      setMsgs(p => [...p, {
+        id: crypto.randomUUID(), role: "assistant",
+        content: data.message || "Deep design complete. Click Apply.",
+        config: data.config, galleryOrder: data.galleryOrder,
+        images: data.images,
+      }]);
+    } catch (err) {
+      const m = err instanceof Error ? err.message : "Error";
+      setError(m);
+      setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `Error: ${m}` }]);
+    } finally { setLoading(false); setCurrentPhase(""); }
+  }
+
+  // ── SIMPLE DESIGN (style-only mode) ───────────────────────────
+  async function sendSimple(text: string) {
     const t = text.trim();
     if (!t || loading) return;
     setMsgs(p => [...p, { id: crypto.randomUUID(), role: "user", content: t }]);
@@ -130,13 +150,12 @@ export default function AIChatPanel({
 
     try {
       const res = await fetch("/api/designer/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: t, currentConfig, invitationId, galleryPhotos: galleryPhotos || [], mode, comprehensive }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
-      setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: data.message || "Ready. Click Apply.", config: data.config, galleryOrder: data.galleryOrder }]);
+      setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: data.message || "Ready.", config: data.config, galleryOrder: data.galleryOrder }]);
     } catch (err) {
       const m = err instanceof Error ? err.message : "Error";
       setError(m);
@@ -144,100 +163,41 @@ export default function AIChatPanel({
     } finally { setLoading(false); }
   }
 
-  // AI image generation — generates multiple design elements
-  const generateAIImages = useCallback(async (prompt: string, multi: boolean) => {
-    if (!prompt.trim() || generatingImages) return;
-    setGeneratingImages(true);
-    setError("");
-    setMsgs(p => [...p, { id: crypto.randomUUID(), role: "user", content: `🎨 ${multi ? "Generate design elements" : "Generate image"}: ${prompt}` }]);
+  function send(text: string) {
+    if (comprehensive) sendDeepDesign(text);
+    else sendSimple(text);
+  }
 
-    try {
-      const res = await fetch("/api/designer/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          invitationId,
-          context: mode === "envelope" ? "Envelope opener page" : "Wedding invitation page",
-          generateMultiple: multi,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Image generation failed");
-
-      const images = data.images || [];
-      if (images.length > 0) {
-        setMsgs(p => [...p, {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: `Generated ${images.length} design element${images.length > 1 ? "s" : ""}. Click "Add All to Gallery" to use them in your design.`,
-          images,
-        }]);
-      }
-    } catch (err) {
-      const m = err instanceof Error ? err.message : "Error";
-      setError(m);
-      setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `Error: ${m}` }]);
-    } finally { setGeneratingImages(false); }
-  }, [generatingImages, invitationId, mode]);
-
-  // File upload
+  // ── FILE UPLOAD ───────────────────────────────────────────────
   const handleFileUpload = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
-    setUploading(true);
-    setError("");
-
+    setUploading(true); setError("");
     try {
       for (const file of fileArray) {
         const isAudio = AUDIO_TYPES.includes(file.type);
         const isImage = IMAGE_TYPES.includes(file.type);
-        if (!isAudio && !isImage) {
-          setError(`Invalid file type: ${file.type}. Use JPG, PNG, WebP or MP3.`);
-          continue;
-        }
-
+        if (!isAudio && !isImage) { setError(`Invalid type: ${file.type}`); continue; }
         const formData = new FormData();
-        formData.append("file", file);
-        formData.append("invitationId", invitationId);
+        formData.append("file", file); formData.append("invitationId", invitationId);
         formData.append("type", isAudio ? "music" : "gallery");
-
         const response = await fetch("/api/upload", { method: "POST", body: formData });
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.error || `Upload failed for ${file.name}`);
-        }
-
+        if (!response.ok) { const d = await response.json().catch(() => ({})); throw new Error(d.error || "Upload failed"); }
         const data = await response.json();
         const url = data.url || data.path;
         if (url) {
-          if (isAudio && onAddMusic) {
-            onAddMusic(url);
-            setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `🎵 Music uploaded: ${file.name}` }]);
-          } else if (isImage && onAddPhoto) {
-            onAddPhoto(url);
-            setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `📷 Photo added to gallery: ${file.name}${data.wasOptimized ? " (auto-optimized)" : ""}` }]);
-          }
+          if (isAudio && onAddMusic) { onAddMusic(url); setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `🎵 Music uploaded: ${file.name}` }]); }
+          else if (isImage && onAddPhoto) { onAddPhoto(url); setMsgs(p => [...p, { id: crypto.randomUUID(), role: "assistant", content: `📷 Photo added to gallery: ${file.name}` }]); }
         }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : "Upload failed"); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
   }, [invitationId, onAddPhoto, onAddMusic]);
 
   function apply(c: Partial<DesignConfig>, go?: number[]) {
     setHistory(p => [...p, currentConfig]);
     onApplyConfig({ ...currentConfig, ...c });
     if (go && onReorderGallery) onReorderGallery(go);
-  }
-
-  function addAllToGallery(images: { url: string }[]) {
-    if (onAddPhoto) {
-      for (const img of images) onAddPhoto(img.url);
-    }
   }
 
   function undo() {
@@ -247,24 +207,20 @@ export default function AIChatPanel({
   }
 
   const label = mode === "envelope" ? "Envelope" : "Page";
-  const busy = loading || generatingImages || uploading;
+  const busy = loading || uploading;
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#2a2a4a] shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs text-white/60 font-medium">{label} AI {comprehensive ? "(Full)" : "(Style)"}</span>
+          <div className={`w-2 h-2 rounded-full ${busy ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+          <span className="text-xs text-white/60 font-medium">{label} AI {comprehensive ? "(Deep Design)" : "(Style)"}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          {galleryPhotos && galleryPhotos.length > 0 && (
-            <span className="text-[9px] text-[#c9a96e]/60 bg-[#c9a96e]/10 px-1.5 py-0.5 rounded">{galleryPhotos.length} photos</span>
-          )}
+          {galleryPhotos && galleryPhotos.length > 0 && <span className="text-[9px] text-[#c9a96e]/60 bg-[#c9a96e]/10 px-1.5 py-0.5 rounded">{galleryPhotos.length} photos</span>}
           {musicFile && <span className="text-[9px] text-purple-400/60 bg-purple-500/10 px-1.5 py-0.5 rounded">♪</span>}
-          {history.length > 0 && (
-            <button type="button" onClick={undo} className="px-2 py-1 rounded text-xs text-white/60 hover:text-white bg-white/5 border border-white/10 cursor-pointer">Undo ({history.length})</button>
-          )}
+          {history.length > 0 && <button type="button" onClick={undo} className="px-2 py-1 rounded text-xs text-white/60 hover:text-white bg-white/5 border border-white/10 cursor-pointer">Undo ({history.length})</button>}
         </div>
       </div>
 
@@ -277,11 +233,11 @@ export default function AIChatPanel({
                 ? <svg className="w-5 h-5 text-[#c9a96e]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                 : <svg className="w-5 h-5 text-[#ed5566]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>}
             </div>
-            <h3 className="text-white font-medium text-sm mb-1">{label} Designer</h3>
+            <h3 className="text-white font-medium text-sm mb-1">{label} {comprehensive ? "Deep Designer" : "Style Editor"}</h3>
             <p className="text-white/40 text-xs max-w-[280px] leading-relaxed mb-4">
               {comprehensive
-                ? `Full ${label.toLowerCase()} redesign — themes, animations, AI-generated images, photo integration.`
-                : `Quick style changes — colors and fonts.`}
+                ? `3-phase AI pipeline: Plans elements → Generates images → Assembles complete design. Takes 1-5 minutes.`
+                : `Quick color and font changes.`}
             </p>
             <div className="flex flex-wrap gap-1.5 justify-center max-w-[340px]">
               {prompts.slice(0, 6).map(p => (
@@ -294,58 +250,61 @@ export default function AIChatPanel({
         )}
 
         {msgs.map(m => (
-          <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${m.role === "user" ? "bg-[#ed5566] text-white rounded-tr-sm" : "bg-[#1a1a2e] border border-[#2a2a4a] text-white/90 rounded-tl-sm"}`}>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
+          <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : m.role === "system" ? "justify-center" : "justify-start"}`}>
+            {m.role === "system" ? (
+              <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/50 font-medium">
+                {m.content}
+              </div>
+            ) : (
+              <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${m.role === "user" ? "bg-[#ed5566] text-white rounded-tr-sm" : "bg-[#1a1a2e] border border-[#2a2a4a] text-white/90 rounded-tl-sm"}`}>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
 
-              {/* Generated images grid */}
-              {m.images && m.images.length > 0 && (
-                <div className="mt-2 space-y-2">
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {m.images.map((img, i) => (
-                      <div key={i} className="relative group">
-                        <img src={img.url} alt={img.description} className="rounded-lg w-full aspect-square object-cover border border-white/10" />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-[8px] text-white/70 px-1 py-0.5 rounded-b-lg truncate">{img.description}</div>
-                      </div>
-                    ))}
+                {/* Generated images grid */}
+                {m.images && m.images.length > 0 && (
+                  <div className="mt-2">
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {m.images.map((img, i) => (
+                        <div key={i} className="relative">
+                          <img src={img.url} alt={img.description} className="rounded-lg w-full aspect-square object-cover border border-white/10" />
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-[8px] text-white/70 px-1 py-0.5 rounded-b-lg truncate">{img.description}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <button type="button" onClick={() => addAllToGallery(m.images!)} className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c9a96e]/20 hover:bg-[#c9a96e]/30 text-[#c9a96e] text-xs font-medium cursor-pointer border border-[#c9a96e]/20">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    Add All to Gallery ({m.images.length})
-                  </button>
-                </div>
-              )}
+                )}
 
-              {/* Design config apply */}
-              {m.role === "assistant" && (m.config || m.galleryOrder) && (
-                <div className="mt-2.5 pt-2.5 border-t border-white/10">
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {m.config?.primaryColor && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-white/50"><span className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ backgroundColor: m.config.primaryColor }} />Primary</span>}
-                    {m.config?.backgroundColor && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-white/50"><span className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ backgroundColor: m.config.backgroundColor }} />Bg</span>}
-                    {m.config?.primaryFont && <span className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-white/50">{m.config.primaryFont}</span>}
-                    {m.config?.customCss && <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-[9px] text-purple-400">CSS</span>}
-                    {m.config?.customHtml && <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-[9px] text-blue-400">HTML</span>}
+                {/* Apply button */}
+                {m.role === "assistant" && m.config && (
+                  <div className="mt-2.5 pt-2.5 border-t border-white/10">
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {m.config?.primaryColor && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-white/50"><span className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ backgroundColor: m.config.primaryColor }} />Primary</span>}
+                      {m.config?.backgroundColor && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-white/50"><span className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ backgroundColor: m.config.backgroundColor }} />Bg</span>}
+                      {m.config?.primaryFont && <span className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-white/50">{m.config.primaryFont}</span>}
+                      {m.config?.customCss && <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-[9px] text-purple-400">CSS</span>}
+                      {m.config?.customHtml && <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-[9px] text-blue-400">HTML</span>}
+                    </div>
+                    <button type="button" onClick={() => apply(m.config || {}, m.galleryOrder)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#ed5566] hover:bg-[#d4444f] text-white text-xs font-medium cursor-pointer">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      Apply Design
+                    </button>
                   </div>
-                  <button type="button" onClick={() => apply(m.config || {}, m.galleryOrder)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#ed5566] hover:bg-[#d4444f] text-white text-xs font-medium cursor-pointer">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                    Apply Design
-                  </button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
 
         {busy && (
-          <div className="flex justify-start">
-            <div className="bg-[#1a1a2e] border border-[#2a2a4a] rounded-2xl rounded-tl-sm px-4 py-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-[#ed5566] animate-bounce" />
-                <div className="w-2 h-2 rounded-full bg-[#ed5566] animate-bounce" style={{ animationDelay: "150ms" }} />
-                <div className="w-2 h-2 rounded-full bg-[#ed5566] animate-bounce" style={{ animationDelay: "300ms" }} />
-                <span className="text-[10px] text-white/40 ml-1">
-                  {generatingImages ? "Generating images..." : uploading ? "Uploading..." : "Designing..."}
-                </span>
+          <div className="flex flex-col items-center gap-2">
+            {currentPhase && <div className="px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 font-medium animate-pulse">{currentPhase}</div>}
+            <div className="flex justify-start w-full">
+              <div className="bg-[#1a1a2e] border border-[#2a2a4a] rounded-2xl rounded-tl-sm px-4 py-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-[#ed5566] animate-bounce" />
+                  <div className="w-2 h-2 rounded-full bg-[#ed5566] animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <div className="w-2 h-2 rounded-full bg-[#ed5566] animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <span className="text-[10px] text-white/40 ml-1">{uploading ? "Uploading..." : comprehensive ? "Deep designing... (1-5 min)" : "Designing..."}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -389,7 +348,6 @@ export default function AIChatPanel({
       {/* Input */}
       <div className="px-4 pb-3 pt-2 border-t border-[#2a2a4a] shrink-0">
         <div className="flex items-end gap-2">
-          {/* Upload button */}
           <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
             className="p-2.5 rounded-xl bg-white/5 text-white/50 hover:text-white hover:bg-white/10 border border-white/10 transition-all shrink-0 cursor-pointer disabled:opacity-30"
             title="Upload photo or music">
@@ -398,24 +356,9 @@ export default function AIChatPanel({
           <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,audio/mpeg" multiple
             onChange={e => { if (e.target.files) handleFileUpload(e.target.files); }} className="hidden" />
 
-          {/* AI Image Gen button */}
-          {comprehensive && (
-            <button type="button"
-              onClick={() => {
-                const t = input.trim();
-                if (t) { generateAIImages(t, true); setInput(""); }
-                else generateAIImages("Elegant wedding floral decorations, gold accents", true);
-              }}
-              disabled={generatingImages}
-              className="p-2.5 rounded-xl bg-[#c9a96e]/10 text-[#c9a96e] hover:bg-[#c9a96e]/20 border border-[#c9a96e]/20 transition-all shrink-0 cursor-pointer disabled:opacity-30"
-              title="Generate AI design element images">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            </button>
-          )}
-
           <textarea ref={taRef} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-            placeholder={comprehensive ? `Describe your ${mode} design...` : `Change ${mode} colors/fonts...`}
+            placeholder={comprehensive ? `Describe complete ${mode} design (1-5 min)...` : `Change ${mode} colors/fonts...`}
             rows={1} disabled={busy}
             className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 resize-none focus:outline-none focus:border-[#ed5566]/50 transition-all disabled:opacity-50"
             style={{ maxHeight: 120 }} />

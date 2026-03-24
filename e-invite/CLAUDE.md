@@ -30,7 +30,7 @@ e-invite/
 │   │   ├── [slug]/            # Public invitation pages (dynamic)
 │   │   ├── api/               # API routes
 │   │   │   ├── auth/          # NextAuth endpoints
-│   │   │   ├── designer/      # AI designer endpoints (generate + generate-image)
+│   │   │   ├── designer/      # AI designer endpoints (generate, generate-image, deep-design)
 │   │   │   ├── invitations/   # Invitation CRUD
 │   │   │   ├── invitees/      # Invitee CRUD + bulk import
 │   │   │   ├── messages/      # Public messages endpoint
@@ -505,6 +505,16 @@ Known bugs found and fixed — watch for regressions:
 **What:** Removed the 6-photo maximum limit on gallery photos.
 **Why:** AI-generated design elements are stored as gallery photos, and users may need many decorative elements. The old limit was too restrictive.
 **Rule:** No hard limit on gallery photo count. The MediaUploader `maxPhotos` default is now 99.
+
+### 40. Deep Design 3-Phase Pipeline (Feature)
+**What:** Comprehensive mode now uses a full 3-phase AI pipeline that takes 1-5 minutes for complete page/envelope redesigns with AI-generated images.
+**Phases:**
+1. **Planning** (back-and-forth, up to 15 turns): Text model iterates, planning all design elements (images, colors, animations, layout). Each turn refines until the AI outputs "OPTIMAL" keyword as a brake. By turn 10, it is forced to finalize.
+2. **Image Generation**: Image model (`gemini-3.1-flash-image-preview`) generates each planned element with size/position metadata.
+3. **Design Assembly**: Text model receives all generated images + their metadata and produces complete CSS/HTML config that positions every element.
+**Endpoint:** `POST /api/designer/deep-design`
+**UI:** AIChatPanel shows phase progress ("Phase 1/3 — Planning...", "Phase 2/3 — Generating images...", "Phase 3/3 — Assembling design..."). Generated images auto-added to gallery.
+**Rule:** Deep design only runs in comprehensive mode. Style-only mode still uses the fast `/api/designer/generate` endpoint. The OPTIMAL keyword is the sentinel that stops the planning loop.
 
 ## Testing
 
