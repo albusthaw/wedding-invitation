@@ -50,7 +50,12 @@ export async function POST(request: NextRequest) {
     const isAudio = ALLOWED_AUDIO_TYPES.includes(file.type);
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const ext = file.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : "mp3");
+    // Derive extension from MIME type, NOT user filename (prevents .svg/.html injection)
+    const MIME_TO_EXT: Record<string, string> = {
+      "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp",
+      "audio/mpeg": "mp3", "audio/mp3": "mp3",
+    };
+    const ext = MIME_TO_EXT[file.type] || (isImage ? "jpg" : "mp3");
     const fileName = `${crypto.randomUUID()}.${ext}`;
 
     if (isImage) {

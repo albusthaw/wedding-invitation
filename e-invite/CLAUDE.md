@@ -387,7 +387,26 @@ Known bugs found and fixed — watch for regressions:
 **Fix:** GET endpoint and server actions now require ADMIN role. getSetting/getSettings mask API keys.
 **Rule:** All settings endpoints and server actions require ADMIN role check.
 
-### 26. Media Tab Page Load Error (Fixed)
+### 26. Publish/Unpublish Routes Lacked Role Check (Fixed)
+**Fix:** Publish and unpublish API routes now require ADMIN role.
+**Rule:** Only ADMIN can publish or unpublish invitations.
+
+### 27. Nested Invitee Routes Lacked Access Check (Fixed)
+**Fix:** POST and DELETE on `/api/invitations/[id]/invitees` now check UserInvitation assignment for non-admin users.
+**Rule:** All invitee-scoped operations must verify the user is ADMIN or assigned to the invitation.
+
+### 28. Users GET Returned All Users to CLIENT (Fixed)
+**Fix:** GET `/api/users` now requires ADMIN role.
+**Rule:** User enumeration is admin-only.
+
+### 29. Upload Extension Derived From User Filename (Fixed)
+**Fix:** File extension now derived from validated MIME type, not user-supplied filename. Prevents `.svg`/`.html` injection.
+**Rule:** ALWAYS use MIME-to-extension mapping for uploaded files. Never trust `file.name`.
+
+### 30. Bulk Invitee Import Lacked Access Check (Fixed)
+**Fix:** POST `/api/invitees/bulk` now checks UserInvitation assignment for non-admin users.
+
+### 31. Media Tab Page Load Error (Fixed)
 **Symptom:** Clicking Media tab in Designer shows "This page couldn't load" error.
 **Root cause:** `handleDrop` useCallback had stale closure — referenced `uploadFiles` but only had `[isImage]` in deps. On re-render, the stale closure caused runtime errors.
 **Fix:** Rewrote MediaUploader with proper useCallback dependencies, ref-based prop access for stability, and stable key generation.
