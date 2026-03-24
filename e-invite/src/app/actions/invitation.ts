@@ -52,9 +52,11 @@ export async function createInvitation(formData: FormData) {
   const session = await requireAuth();
 
   const title = formData.get("title") as string;
+  const customSlug = formData.get("slug") as string;
   const groomName = formData.get("groomName") as string;
   const brideName = formData.get("brideName") as string;
   const weddingDate = formData.get("weddingDate") as string;
+  const weddingTime = formData.get("weddingTime") as string;
   const weddingVenue = formData.get("weddingVenue") as string;
   const weddingAddress = formData.get("weddingAddress") as string;
   const mapPlusCode = (formData.get("mapPlusCode") as string) || null;
@@ -63,7 +65,18 @@ export async function createInvitation(formData: FormData) {
     throw new Error("Missing required fields");
   }
 
-  const slug = generateSlug(title);
+  // Use custom slug if provided, otherwise generate from title
+  let slug: string;
+  if (customSlug && customSlug.trim()) {
+    slug = customSlug.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/^-|-$/g, "");
+    // Check uniqueness
+    const existing = await prisma.invitationLetter.findUnique({ where: { slug } });
+    if (existing) {
+      throw new Error("This URL slug is already taken. Please choose a different one.");
+    }
+  } else {
+    slug = generateSlug(title);
+  }
 
   let groomPhoto: string | null = null;
   let bridePhoto: string | null = null;
@@ -99,7 +112,7 @@ export async function createInvitation(formData: FormData) {
       title,
       groomName,
       brideName,
-      weddingDate: new Date(weddingDate),
+      weddingDate: weddingTime ? new Date(`${weddingDate}T${weddingTime}`) : new Date(weddingDate),
       weddingVenue,
       weddingAddress,
       mapPlusCode,
@@ -123,9 +136,11 @@ export async function updateInvitation(id: string, formData: FormData) {
   await requireAuth();
 
   const title = formData.get("title") as string;
+  const slug = formData.get("slug") as string;
   const groomName = formData.get("groomName") as string;
   const brideName = formData.get("brideName") as string;
   const weddingDate = formData.get("weddingDate") as string;
+  const weddingTime = formData.get("weddingTime") as string;
   const weddingVenue = formData.get("weddingVenue") as string;
   const weddingAddress = formData.get("weddingAddress") as string;
 
@@ -134,9 +149,30 @@ export async function updateInvitation(id: string, formData: FormData) {
   };
 
   if (title) data.title = title;
+  if (slug) {
+    // Sanitize and validate slug
+    const sanitizedSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/^-|-$/g, "");
+    if (sanitizedSlug) {
+      // Check uniqueness (excluding current invitation)
+      const existing = await prisma.invitationLetter.findFirst({
+        where: { slug: sanitizedSlug, id: { not: id } },
+      });
+      if (existing) {
+        throw new Error("This URL slug is already taken. Please choose a different one.");
+      }
+      data.slug = sanitizedSlug;
+    }
+  }
   if (groomName) data.groomName = groomName;
   if (brideName) data.brideName = brideName;
-  if (weddingDate) data.weddingDate = new Date(weddingDate);
+  if (weddingDate) {
+    // Combine date and time if time is provided
+    if (weddingTime) {
+      data.weddingDate = new Date(`${weddingDate}T${weddingTime}`);
+    } else {
+      data.weddingDate = new Date(weddingDate);
+    }
+  }
   if (weddingVenue) data.weddingVenue = weddingVenue;
   if (weddingAddress) data.weddingAddress = weddingAddress;
 

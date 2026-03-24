@@ -23,30 +23,35 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   config?: Partial<DesignConfig>;
+  galleryOrder?: number[];
   timestamp: Date;
 }
 
 interface AIChatPanelProps {
   currentConfig: DesignConfig;
   onApplyConfig: (config: DesignConfig) => void;
+  onReorderGallery?: (order: number[]) => void;
   invitationId: string;
+  galleryPhotos?: string[];
 }
 
 const SUGGESTED_PROMPTS = [
-  "Make it more elegant",
-  "Change to rustic theme",
-  "Add floral decorations",
-  "Make fonts larger",
-  "Change to minimalist style",
-  "Use a romantic color palette",
-  "Make it more modern",
-  "Use earthy tones",
+  "Make it elegant with gold accents",
+  "Change to rustic garden theme",
+  "Use romantic blush pink palette",
+  "Make it modern and minimalist",
+  "Royal gold theme with dark background",
+  "Beach tropical theme",
+  "Vintage classic style",
+  "Make fonts more dramatic",
 ];
 
 export default function AIChatPanel({
   currentConfig,
   onApplyConfig,
+  onReorderGallery,
   invitationId,
+  galleryPhotos,
 }: AIChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -91,6 +96,7 @@ export default function AIChatPanel({
             prompt: text.trim(),
             currentConfig,
             invitationId,
+            galleryPhotos: galleryPhotos || [],
           }),
         });
 
@@ -106,6 +112,7 @@ export default function AIChatPanel({
           role: "assistant",
           content: data.message || "Here are the suggested changes:",
           config: data.config || undefined,
+          galleryOrder: data.galleryOrder || undefined,
           timestamp: new Date(),
         };
 
@@ -124,10 +131,10 @@ export default function AIChatPanel({
         setIsLoading(false);
       }
     },
-    [currentConfig, invitationId, isLoading]
+    [currentConfig, invitationId, isLoading, galleryPhotos]
   );
 
-  function handleApplyConfig(config: Partial<DesignConfig>) {
+  function handleApplyConfig(config: Partial<DesignConfig>, galleryOrder?: number[]) {
     // Save current config to history for undo
     setConfigHistory((prev) => [...prev, currentConfig]);
 
@@ -136,6 +143,11 @@ export default function AIChatPanel({
       ...config,
     };
     onApplyConfig(newConfig);
+
+    // Apply gallery reorder if provided
+    if (galleryOrder && onReorderGallery) {
+      onReorderGallery(galleryOrder);
+    }
   }
 
   function handleUndo() {
@@ -189,6 +201,11 @@ export default function AIChatPanel({
             </h3>
             <p className="text-white/40 text-xs max-w-[240px] leading-relaxed mb-6">
               Describe how you&apos;d like your invitation to look and I&apos;ll generate the design for you.
+              {galleryPhotos && galleryPhotos.length > 0 && (
+                <span className="block mt-1 text-[#c9a96e]/60">
+                  {galleryPhotos.length} gallery photo{galleryPhotos.length !== 1 ? "s" : ""} available for arrangement.
+                </span>
+              )}
             </p>
 
             {/* Suggested prompts */}
@@ -198,7 +215,7 @@ export default function AIChatPanel({
                   key={prompt}
                   type="button"
                   onClick={() => sendMessage(prompt)}
-                  className="px-3 py-1.5 rounded-full text-[11px] bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-[#ed5566]/10 hover:border-[#ed5566]/30 transition-all"
+                  className="px-3 py-1.5 rounded-full text-[11px] bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-[#ed5566]/10 hover:border-[#ed5566]/30 transition-all cursor-pointer"
                 >
                   {prompt}
                 </button>
@@ -231,11 +248,11 @@ export default function AIChatPanel({
                 </p>
 
                 {/* Apply config button for AI responses */}
-                {message.role === "assistant" && message.config && (
+                {message.role === "assistant" && (message.config || message.galleryOrder) && (
                   <div className="mt-3 pt-3 border-t border-white/10">
                     <div className="flex flex-wrap gap-2 mb-2">
                       {/* Show mini preview of changes */}
-                      {message.config.primaryColor && (
+                      {message.config?.primaryColor && (
                         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 text-[10px] text-white/50">
                           <div
                             className="w-3 h-3 rounded-full border border-white/20"
@@ -244,7 +261,7 @@ export default function AIChatPanel({
                           Primary
                         </div>
                       )}
-                      {message.config.accentColor && (
+                      {message.config?.accentColor && (
                         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 text-[10px] text-white/50">
                           <div
                             className="w-3 h-3 rounded-full border border-white/20"
@@ -253,7 +270,7 @@ export default function AIChatPanel({
                           Accent
                         </div>
                       )}
-                      {message.config.backgroundColor && (
+                      {message.config?.backgroundColor && (
                         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 text-[10px] text-white/50">
                           <div
                             className="w-3 h-3 rounded-full border border-white/20"
@@ -262,16 +279,21 @@ export default function AIChatPanel({
                           Background
                         </div>
                       )}
-                      {message.config.primaryFont && (
+                      {message.config?.primaryFont && (
                         <div className="px-2 py-1 rounded bg-white/5 text-[10px] text-white/50">
                           Font: {message.config.primaryFont}
+                        </div>
+                      )}
+                      {message.galleryOrder && (
+                        <div className="px-2 py-1 rounded bg-white/5 text-[10px] text-white/50">
+                          Gallery reorder: {message.galleryOrder.length} images
                         </div>
                       )}
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleApplyConfig(message.config!)}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#ed5566] hover:bg-[#d4444f] text-white text-xs font-medium transition-all hover:shadow-lg hover:shadow-[#ed5566]/20"
+                      onClick={() => handleApplyConfig(message.config || {}, message.galleryOrder)}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#ed5566] hover:bg-[#d4444f] text-white text-xs font-medium transition-all hover:shadow-lg hover:shadow-[#ed5566]/20 cursor-pointer"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -321,7 +343,7 @@ export default function AIChatPanel({
                 key={prompt}
                 type="button"
                 onClick={() => sendMessage(prompt)}
-                className="px-2.5 py-1 rounded-full text-[10px] whitespace-nowrap bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-[#ed5566]/10 hover:border-[#ed5566]/30 transition-all shrink-0"
+                className="px-2.5 py-1 rounded-full text-[10px] whitespace-nowrap bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-[#ed5566]/10 hover:border-[#ed5566]/30 transition-all shrink-0 cursor-pointer"
               >
                 {prompt}
               </button>
@@ -350,7 +372,7 @@ export default function AIChatPanel({
             type="button"
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading}
-            className="p-3 rounded-xl bg-[#ed5566] text-white hover:bg-[#d4444f] disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:shadow-lg hover:shadow-[#ed5566]/20 shrink-0"
+            className="p-3 rounded-xl bg-[#ed5566] text-white hover:bg-[#d4444f] disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:shadow-lg hover:shadow-[#ed5566]/20 shrink-0 cursor-pointer"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

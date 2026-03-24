@@ -171,6 +171,17 @@ export default function NewInvitationPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-white/70 mb-1.5">
+                Wedding Time <span className="text-[#ed5566]">*</span>
+              </label>
+              <input
+                name="weddingTime"
+                type="time"
+                required
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#ed5566]/50 focus:ring-1 focus:ring-[#ed5566]/30 transition-all [color-scheme:dark]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-1.5">
                 Wedding Venue <span className="text-[#ed5566]">*</span>
               </label>
               <input

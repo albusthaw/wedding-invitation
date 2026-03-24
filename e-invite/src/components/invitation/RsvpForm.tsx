@@ -34,8 +34,13 @@ export default function RsvpForm({
         setStatus("success");
         setMessage("Thank you for your response!");
       } else {
+        const data = await res.json().catch(() => ({}));
         setStatus("error");
-        setMessage("Something went wrong. Please try again.");
+        if (res.status === 429) {
+          setMessage(data.error || "You have already submitted your RSVP.");
+        } else {
+          setMessage(data.error || "Something went wrong. Please try again.");
+        }
       }
     } catch {
       setStatus("error");

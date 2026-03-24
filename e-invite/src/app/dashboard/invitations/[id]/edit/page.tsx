@@ -113,8 +113,12 @@ export default function EditInvitationPage({
     );
   }
 
-  const weddingDateFormatted = invitation.weddingDate
-    ? new Date(invitation.weddingDate).toISOString().split("T")[0]
+  const weddingDateObj = invitation.weddingDate ? new Date(invitation.weddingDate) : null;
+  const weddingDateFormatted = weddingDateObj
+    ? weddingDateObj.toISOString().split("T")[0]
+    : "";
+  const weddingTimeFormatted = weddingDateObj
+    ? weddingDateObj.toTimeString().slice(0, 5)
     : "";
 
   return (
@@ -193,9 +197,14 @@ export default function EditInvitationPage({
               </label>
               <div className="flex items-center">
                 <span className="text-white/30 text-sm mr-2">/</span>
-                <span className="text-white/50 text-sm font-mono">{invitation.slug}</span>
+                <input
+                  name="slug"
+                  type="text"
+                  defaultValue={invitation.slug}
+                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-[#ed5566]/50 focus:ring-1 focus:ring-[#ed5566]/30 transition-all font-mono text-sm"
+                />
               </div>
-              <p className="text-white/30 text-xs mt-1">Slug cannot be changed after creation</p>
+              <p className="text-white/30 text-xs mt-1">Change the URL slug for this invitation (must be unique)</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-white/70 mb-1.5">
@@ -239,6 +248,18 @@ export default function EditInvitationPage({
                 type="date"
                 required
                 defaultValue={weddingDateFormatted}
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#ed5566]/50 focus:ring-1 focus:ring-[#ed5566]/30 transition-all [color-scheme:dark]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-1.5">
+                Wedding Time <span className="text-[#ed5566]">*</span>
+              </label>
+              <input
+                name="weddingTime"
+                type="time"
+                required
+                defaultValue={weddingTimeFormatted}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#ed5566]/50 focus:ring-1 focus:ring-[#ed5566]/30 transition-all [color-scheme:dark]"
               />
             </div>

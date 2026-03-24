@@ -40,9 +40,13 @@ export default function MessageWall({
     return () => clearInterval(interval);
   }, [messages]);
 
+  const [sendError, setSendError] = useState("");
+  const [alreadySent, setAlreadySent] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSending(true);
+    setSendError("");
     const form = new FormData(e.currentTarget);
     form.append("invitationId", invitationId);
 
@@ -55,10 +59,19 @@ export default function MessageWall({
         const newMsg = await res.json();
         setMessages((prev) => [...prev, newMsg]);
         setShowInput(false);
+        setAlreadySent(true);
         (e.target as HTMLFormElement).reset();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          setSendError(data.error || "You have already sent a blessing.");
+          setAlreadySent(true);
+        } else {
+          setSendError(data.error || "Failed to send. Please try again.");
+        }
       }
     } catch {
-      // silently fail
+      setSendError("Failed to send. Please try again.");
     }
     setSending(false);
   };
@@ -90,11 +103,12 @@ export default function MessageWall({
 
       {/* Blessing button */}
       <motion.button
-        className="fixed bottom-6 left-3 z-[101] px-4 py-2 bg-black/35 rounded-full text-white text-xs tracking-wider cursor-pointer border border-white/10"
-        onClick={() => setShowInput(true)}
-        whileTap={{ scale: 0.95 }}
+        className={`fixed bottom-6 left-3 z-[101] px-4 py-2 bg-black/35 rounded-full text-white text-xs tracking-wider border border-white/10 ${alreadySent ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+        onClick={() => !alreadySent && setShowInput(true)}
+        whileTap={alreadySent ? {} : { scale: 0.95 }}
+        disabled={alreadySent}
       >
-        💌 Send Blessing
+        {alreadySent ? "✓ Blessing Sent" : "💌 Send Blessing"}
       </motion.button>
 
       {/* Input modal */}
@@ -146,6 +160,9 @@ export default function MessageWall({
                 >
                   {sending ? "Sending..." : "Send Blessing"}
                 </button>
+                {sendError && (
+                  <p className="text-[#ed5566] text-xs text-center mt-2">{sendError}</p>
+                )}
               </form>
             </motion.div>
           </motion.div>

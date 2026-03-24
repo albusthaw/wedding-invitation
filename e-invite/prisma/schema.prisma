@@ -46,9 +46,10 @@ model InvitationLetter {
   needsRepublish Boolean          @default(false)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
-  users          UserInvitation[]
-  invitees       Invitee[]
-  messages       Message[]
+  users            UserInvitation[]
+  invitees         Invitee[]
+  messages         Message[]
+  rsvpSubmissions  RsvpSubmission[]
 }
 
 model UserInvitation {
@@ -86,11 +87,22 @@ model Message {
   id           String           @id @default(cuid())
   content      String           @db.Text
   senderName   String
+  senderIp     String?
   userId       String?
   invitationId String
   user         User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   invitation   InvitationLetter @relation(fields: [invitationId], references: [id], onDelete: Cascade)
   createdAt    DateTime         @default(now())
+}
+
+model RsvpSubmission {
+  id           String           @id @default(cuid())
+  ip           String
+  invitationId String
+  invitation   InvitationLetter @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+
+  @@unique([ip, invitationId])
 }
 
 model Setting {
