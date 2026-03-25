@@ -513,7 +513,13 @@ Known bugs found and fixed — watch for regressions:
 3. **Design Assembly**: Text model receives all generated images + their metadata and produces complete CSS/HTML config that positions every element.
 **Endpoint:** `POST /api/designer/deep-design`
 **UI:** AIChatPanel shows phase progress ("Phase 1/3 — Planning...", "Phase 2/3 — Generating images...", "Phase 3/3 — Assembling design..."). Generated images auto-added to gallery.
-**Rule:** Deep design only runs in comprehensive mode. Style-only mode still uses the fast `/api/designer/generate` endpoint. The OPTIMAL keyword is the sentinel that stops the planning loop.
+**Rule:** Deep design only runs in comprehensive mode via preset buttons. Typed messages always use the fast `/api/designer/generate` endpoint. The OPTIMAL keyword is the sentinel that stops the planning loop.
+
+### 41. `crypto.randomUUID()` Crashes Page in Non-Secure Contexts (Fixed)
+**Symptom:** Sending any AI message or clicking a preset in the Designer causes "This page couldn't load. Reload to try again."
+**Root cause:** `AIChatPanel.tsx` used `crypto.randomUUID()` (Web Crypto API) to generate message IDs. `crypto.randomUUID()` requires a secure context (HTTPS). When the browser accesses the site via HTTP, or the secure context is degraded (e.g. mixed content, certain proxy setups), it throws `TypeError: crypto.randomUUID is not a function`, which is an unhandled error that crashes React's render tree.
+**Fix:** Replaced all `crypto.randomUUID()` calls with a custom `genId()` function that uses `Date.now() + counter + Math.random()`. This works in ALL browser contexts (HTTP, HTTPS, localhost, proxied).
+**Rule:** NEVER use `crypto.randomUUID()` in client components. Use `Date.now()` + `Math.random()` based IDs instead. The Web Crypto API is not reliably available in all deployment contexts.
 
 ## Testing
 

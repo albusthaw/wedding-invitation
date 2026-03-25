@@ -2,6 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 
+// Safe ID generator that works in all browser contexts (including non-HTTPS)
+let _idCounter = 0;
+function genId(): string {
+  _idCounter++;
+  return `msg-${Date.now()}-${_idCounter}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 interface DesignConfig {
   primaryFont: string; backgroundColor: string; primaryColor: string;
   accentColor: string; textColor: string; backgroundImage: string;
@@ -82,7 +89,7 @@ export default function AIChatPanel({
   async function sendDesign(text: string) {
     const t = text.trim();
     if (!t || loading) return;
-    setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "user", content: t }]);
+    setMsgs(prev => [...prev, { id: genId(), role: "user", content: t }]);
     setInput(""); setError(""); setLoading(true);
 
     try {
@@ -92,11 +99,11 @@ export default function AIChatPanel({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
-      setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: data.message || "Ready. Click Apply.", config: data.config, galleryOrder: data.galleryOrder }]);
+      setMsgs(prev => [...prev, { id: genId(), role: "assistant", content: data.message || "Ready. Click Apply.", config: data.config, galleryOrder: data.galleryOrder }]);
     } catch (err) {
       const m = err instanceof Error ? err.message : "Error";
       setError(m);
-      setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: `Error: ${m}` }]);
+      setMsgs(prev => [...prev, { id: genId(), role: "assistant", content: `Error: ${m}` }]);
     } finally { setLoading(false); }
   }
 
@@ -104,10 +111,10 @@ export default function AIChatPanel({
   async function sendDeepDesign(text: string) {
     const t = text.trim();
     if (!t || loading) return;
-    setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "user", content: t }]);
+    setMsgs(prev => [...prev, { id: genId(), role: "user", content: t }]);
     setInput(""); setError(""); setLoading(true);
     setCurrentPhase("🔍 Planning design elements...");
-    setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "system", content: "🔍 Phase 1/3 — Planning design elements..." }]);
+    setMsgs(prev => [...prev, { id: genId(), role: "system", content: "🔍 Phase 1/3 — Planning design elements..." }]);
 
     try {
       const res = await fetch("/api/designer/deep-design", {
@@ -122,9 +129,9 @@ export default function AIChatPanel({
       const planCount = phaseLogs.filter((x: { phase: string }) => x.phase === "plan").length;
       const imgCount = data.images?.length || 0;
 
-      if (planCount > 0) setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "system", content: `✅ Phase 1 — ${planCount} planning steps` }]);
-      if (imgCount > 0) setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "system", content: `🎨 Phase 2 — ${imgCount} images generated` }]);
-      setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "system", content: "🏗️ Phase 3 — Design assembled" }]);
+      if (planCount > 0) setMsgs(prev => [...prev, { id: genId(), role: "system", content: `✅ Phase 1 — ${planCount} planning steps` }]);
+      if (imgCount > 0) setMsgs(prev => [...prev, { id: genId(), role: "system", content: `🎨 Phase 2 — ${imgCount} images generated` }]);
+      setMsgs(prev => [...prev, { id: genId(), role: "system", content: "🏗️ Phase 3 — Design assembled" }]);
 
       // Auto-add generated images to gallery
       if (data.images?.length > 0 && onAddPhoto) {
@@ -132,14 +139,14 @@ export default function AIChatPanel({
       }
 
       setMsgs(prev => [...prev, {
-        id: crypto.randomUUID(), role: "assistant",
+        id: genId(), role: "assistant",
         content: data.message || "Deep design complete. Click Apply.",
         config: data.config, galleryOrder: data.galleryOrder, images: data.images,
       }]);
     } catch (err) {
       const m = err instanceof Error ? err.message : "Error";
       setError(m);
-      setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: `Error: ${m}` }]);
+      setMsgs(prev => [...prev, { id: genId(), role: "assistant", content: `Error: ${m}` }]);
     } finally { setLoading(false); setCurrentPhase(""); }
   }
 
@@ -164,8 +171,8 @@ export default function AIChatPanel({
         if (!response.ok) { const d = await response.json().catch(() => ({})); throw new Error(d.error || "Upload failed"); }
         const data = await response.json();
         const url = data.url || data.path;
-        if (url && isAudio && onAddMusic) { onAddMusic(url); setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: `🎵 Music uploaded` }]); }
-        else if (url && isImage && onAddPhoto) { onAddPhoto(url); setMsgs(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: `📷 Photo added to gallery` }]); }
+        if (url && isAudio && onAddMusic) { onAddMusic(url); setMsgs(prev => [...prev, { id: genId(), role: "assistant", content: `🎵 Music uploaded` }]); }
+        else if (url && isImage && onAddPhoto) { onAddPhoto(url); setMsgs(prev => [...prev, { id: genId(), role: "assistant", content: `📷 Photo added to gallery` }]); }
       }
     } catch (err) { setError(err instanceof Error ? err.message : "Upload failed"); }
     finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }

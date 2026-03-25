@@ -68,3 +68,39 @@ Complete overhaul of the AI design pipeline. Comprehensive mode now runs a 3-pha
 - All 65 unit tests pass ✓
 - New `/api/designer/deep-design` route registered ✓
 - Style-only mode still uses fast `/api/designer/generate` ✓
+
+---
+
+# Major Update Part 3 - 2026-03-25 (v16)
+
+## Summary
+Fixed critical page crash in Designer when sending any AI message or clicking presets.
+
+## Problem
+Sending any message through Page AI or Envelope AI (typing + Enter, or clicking a preset) caused "This page couldn't load. Reload to try again."
+
+## Root Cause
+`AIChatPanel.tsx` used `crypto.randomUUID()` (Web Crypto API) 14 times to generate unique message IDs. The Web Crypto API's `randomUUID()` method requires a **secure context** (HTTPS). When the browser operates outside a fully secure context — which can happen with:
+- HTTP access
+- Mixed content scenarios
+- Certain reverse proxy configurations (Cloudflare → Nginx → HTTP Node.js)
+- Some mobile browsers behind corporate proxies
+
+`crypto.randomUUID()` throws `TypeError: crypto.randomUUID is not a function`. This unhandled error crashes React's entire render tree, resulting in the generic "This page couldn't load" error.
+
+This bug was introduced when the AIChatPanel was rewritten (v13) and has persisted through v14-v15 because all subsequent changes kept using the same pattern.
+
+## Fix
+- Created a `genId()` helper function: `Date.now() + counter + Math.random().toString(36)` — works in ALL browser contexts
+- Replaced all 14 occurrences of `crypto.randomUUID()` with `genId()`
+- Zero dependency on Web Crypto API in client components
+
+## Files Changed
+- `src/components/designer/AIChatPanel.tsx` — Replaced all `crypto.randomUUID()` with safe `genId()`
+- `CLAUDE.md` — Bug pattern #41
+- `majorupdate.md` — Part 3
+
+## Testing
+- Build succeeds ✓
+- All 65 unit tests pass ✓
+- No `crypto.randomUUID()` remaining in any client component ✓
