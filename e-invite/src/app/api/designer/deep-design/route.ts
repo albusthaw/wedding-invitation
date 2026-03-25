@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sanitizeHtml, sanitizeCss } from "@/lib/sanitize";
 import { writeFile, mkdir } from "fs/promises";
+
+// Allow up to 5 minutes for the deep design pipeline
+export const maxDuration = 300;
 import { join } from "path";
 import crypto from "crypto";
 

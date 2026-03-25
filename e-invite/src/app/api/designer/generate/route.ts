@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+export const maxDuration = 300;
 import { sanitizeHtml, sanitizeCss } from "@/lib/sanitize";
 
 const COMPREHENSIVE_ENVELOPE_PROMPT = `You are an expert wedding invitation ENVELOPE designer. You COMPLETELY redesign the envelope — colors, layout, animations, custom CSS, custom HTML.
